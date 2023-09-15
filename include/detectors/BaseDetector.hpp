@@ -4,6 +4,9 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
+#include "opencv2/core.hpp"
+#include <opencv2/core/mat.hpp>
+#include <vector>
 
 namespace helios_cv {
 
@@ -15,11 +18,9 @@ public:
 
     virtual bool detect_targets() = 0;
 
-    virtual 
+    virtual void draw_results(cv::Mat& img) = 0;
 
     ~BaseDetector();
-private:
-
 };
 
 } // namespace helios_cv
