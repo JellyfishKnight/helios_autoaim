@@ -17,9 +17,17 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   DIRECTORY src
 )
 
+generate_parameter_library(
+  helios_autoaim_parameters # cmake target name for the parameter library
+  src/helios_autoaim_parameters.yaml # path to input yaml file
+)
+
 target_include_directories(
   ${PROJECT_NAME} PUBLIC
-  include/${PROJECT_NAME}
+  include/
+  include/detectors
+  include/predictors
+  include/fire_controllers
 )
 
 target_link_libraries(
@@ -27,6 +35,7 @@ target_link_libraries(
   ${OpenCV_LIBS}
   Eigen3::Eigen
   ceres::Ceres
+  helios_autoaim_parameters
 )
 
 rclcpp_components_register_node(${PROJECT_NAME}
