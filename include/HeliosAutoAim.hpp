@@ -73,11 +73,13 @@ private:
     
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::SendData>::SharedPtr target_data_pub_;
-    
+
     std::shared_ptr<helios_autoaim::ParamListener> param_listener_;
     helios_autoaim::Params params_;
 
     void image_callback(sensor_msgs::msg::Image::ConstSharedPtr msg);
+
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> get_node();
 };
 
 } // namespace helios_cv
