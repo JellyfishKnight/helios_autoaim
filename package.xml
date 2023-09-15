@@ -8,18 +8,29 @@
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  
+  <!-- ros2 base -->
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <!-- tf2 utilities -->
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
+  <depend>message_filters</depend>
+  <!-- image utilities -->
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <!-- topic interfaces -->
   <depend>tf2_geometry_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>autoaim_interfaces</depend>
+  <depend>lifecycle_msgs</depend>
   <depend>helios_rs_interfaces</depend>
-  <depend>message_filters</depend>
+  <depend>visualization_msgs</depend>
+  <!-- math utilities -->
   <depend>angles</depend>
+  <!-- parameter generator -->
+  <depend>generate_parameter_library</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

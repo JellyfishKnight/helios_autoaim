@@ -3,6 +3,7 @@
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #pragma once
 
+#include "BaseFireController.hpp"
 
 namespace helios_cv {
 

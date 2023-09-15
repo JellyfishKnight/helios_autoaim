@@ -9,7 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake_auto REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV 4 REQUIRED)
-find_package(Ceres REQUIRED)
+find_package(Ceres CONFIG REQUIRED)
 
 ament_auto_find_build_dependencies()
 
@@ -34,7 +34,7 @@ target_link_libraries(
   ${PROJECT_NAME}
   ${OpenCV_LIBS}
   Eigen3::Eigen
-  ceres::Ceres
+  ceres Ceres::ceres
   helios_autoaim_parameters
 )
 

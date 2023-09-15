@@ -1,4 +1,6 @@
 helios_autoaim:
-  detector:
-    
-  predictor:
+  motor_names: {
+    type: string_array,
+    default_value: ["yaw", "pitch"],
+    description: "Link names of the motors",
+  }

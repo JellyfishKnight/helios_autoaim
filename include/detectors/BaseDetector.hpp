@@ -20,6 +20,6 @@ public:
     ~BaseDetector();
 private:
 
-}
+};
 
 } // namespace helios_cv

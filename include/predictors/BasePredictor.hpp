@@ -6,4 +6,10 @@
 
 namespace helios_cv {
 
+class BasePredictor {
+public:
+
+private:
+};
+
 } // namespace helios_cv
