@@ -6,9 +6,11 @@
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/node_options.hpp>
+#include <rclcpp/parameter.hpp>
 #include <rclcpp/qos.hpp>
 #include <rclcpp/utilities.hpp>
 #include <sensor_msgs/msg/detail/image__struct.hpp>
+#include <vector>
 
 namespace helios_cv {
 
@@ -29,17 +31,7 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
         // refresh parameters if there is any change
         if (param_listener_->is_old(params_)) {
             params_ = param_listener_->get_params();
-        }
-        // check if we should start autoaim function, usually true
-        if (params_.activate && state_ == State::UNCONFIGURED) {
-            RCLCPP_INFO(logger_, "Autoaim start");
-            transition_ = Transition::CONFIGURE;
-        } else if (!params_.activate && state_ == State::ACTIVE) {
-            RCLCPP_INFO(logger_, "Autoaim stop");
-            transition_ = Transition::DEACTIVATE;
-        } else {
-            // if there is no change in params, do nothing
-            continue;
+            transition_ = static_cast<Transition>(params_.transition);
         }
         // finalize
         if (transition_ == Transition::SHUTDOWN) {
@@ -58,7 +50,7 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
         } else if (transition_ == Transition::CONFIGURE && state_ == State::UNCONFIGURED) {
             state_ = on_configure();
             if (state_ == State::INACTIVE) {
-                transition_ = Transition::ACTIVATE;
+                transition_ = Transition::NONE;
                 RCLCPP_DEBUG(logger_, "Autoaim configure success");
             } else {
                 RCLCPP_ERROR(logger_, "Failed to configure");
@@ -68,6 +60,7 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
         } else if (transition_ == Transition::ACTIVATE && state_ == State::INACTIVE) {
             state_ = on_activate();
             if (state_ == State::ACTIVE) {
+                transition_ = Transition::NONE;
                 RCLCPP_DEBUG(logger_, "Autoaim activate success");
             } else {
                 RCLCPP_ERROR(logger_, "Failed to activate");
@@ -77,7 +70,7 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
         } else if (transition_ == Transition::DEACTIVATE && state_ == State::ACTIVE) {
             state_ = on_deactivate();
             if (state_ == State::INACTIVE) {
-                transition_ = Transition::CLEANUP;
+                transition_ = Transition::NONE;
                 RCLCPP_DEBUG(logger_, "Autoaim deactivate success");
             } else {
                 RCLCPP_ERROR(logger_, "Failed to deactivate");
@@ -87,18 +80,16 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
         } else if (transition_ == Transition::CLEANUP && state_ == State::INACTIVE) {
             state_ = on_cleanup();
             if (state_ == State::UNCONFIGURED) {
+                transition_ = Transition::NONE;
                 RCLCPP_DEBUG(logger_, "Autoaim cleanup success");
-                if (last_autoaim_state_ != params_.armor_autoaim) {
-                    last_autoaim_state_ = params_.armor_autoaim;
-                    transition_ = Transition::CONFIGURE;
-                } else {
-                    transition_ = Transition::NONE;
-                }
             } else {
                 RCLCPP_ERROR(logger_, "Failed to cleanup");
                 state_ = State::ERROR;
             }
         }
+        // update state
+        param_listener_->update(std::vector<rclcpp::Parameter>{
+            rclcpp::Parameter("state", static_cast<int>(state_))});
     }
     RCLCPP_INFO(logger_, "Autoaim shutdown success");
 }
@@ -140,3 +131,8 @@ State HeliosAutoAim::on_error() {
 }
 
 } // namespace helios_cv
+
+// register node to component
+#include "rclcpp_components/register_node_macro.hpp"
+
+RCLCPP_COMPONENTS_REGISTER_NODE(helios_cv::HeliosAutoAim);

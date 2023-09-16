@@ -49,7 +49,7 @@ enum State {
 class HeliosAutoAim : public rclcpp::Node {
 public:
     HeliosAutoAim(const rclcpp::NodeOptions& options);
-    
+
     State on_configure();
 
     State on_activate();
@@ -91,3 +91,4 @@ private:
 };
 
 } // namespace helios_cv
+

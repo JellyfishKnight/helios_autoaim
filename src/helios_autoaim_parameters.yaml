@@ -1,8 +1,13 @@
 helios_autoaim:
-  activate: {
-    type: bool,
-    default_value: true,
-    description: "activate autoaim",
+  state: {
+    type: int,
+    default_value: 0,
+    description: "state",
+  }
+  transition: {
+    type: int,
+    default_value: 0,
+    description: "transition",
   }
   armor_autoaim: {
     type: bool,
