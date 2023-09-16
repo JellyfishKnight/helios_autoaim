@@ -1,4 +1,6 @@
 #include "HeliosAutoAim.hpp"
+#include "TraditionalArmorDetector.hpp"
+#include "TraditionalEnergyDetector.hpp"
 #include "helios_autoaim_parameters.hpp"
 #include <cmath>
 #include <functional>
@@ -25,7 +27,6 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
     params_ = param_listener_->get_params();
     state_ = State::UNCONFIGURED;
     transition_ = Transition::NONE;
-    last_autoaim_state_ = params_.armor_autoaim;
     // state machine
     while (rclcpp::ok()) {
         // refresh parameters if there is any change
@@ -96,7 +97,11 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
 
 State HeliosAutoAim::on_configure() {
     // create detector
-    
+    if (params_.armor_autoaim) {
+        detector_ = std::make_shared<TraditionalArmorDetector>(params_.detector);
+    } else {
+        detector_ = std::make_shared<TraditionalEnergyDetector>(params_.detector);
+    }
     return State::INACTIVE;
 }
 
