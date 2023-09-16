@@ -3,16 +3,10 @@
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #pragma once
 
-#include <helios_rs_interfaces/msg/detail/send_data__struct.hpp>
 #include <iostream>
 #include <memory>
-#include <rclcpp/publisher.hpp>
-#include <rclcpp/subscription_base.hpp>
-#include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
-#include <sensor_msgs/msg/detail/image__struct.hpp>
 
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_broadcaster.h"
 
@@ -32,40 +26,43 @@
 
 
 namespace helios_cv {
-/// LifecycleTalker inheriting from rclcpp_lifecycle::LifecycleNode
-/**
- * The lifecycle talker does not like the regular "talker" node
- * inherit from node, but rather from lifecyclenode. This brings
- * in a set of callbacks which are getting invoked depending on
- * the current state of the node.
- * Every lifecycle node has a set of services attached to it
- * which make it controllable from the outside and invoke state
- * changes.
- * Available Services as for Beta1:
- * - <node_name>__get_state
- * - <node_name>__change_state
- * - <node_name>__get_available_states
- * - <node_name>__get_available_transitions
- * Additionally, a publisher for state change notifications is
- * created:
- * - <node_name>__transition_event
- */
 
-class HeliosAutoAim : public rclcpp_lifecycle::LifecycleNode {
+enum Trasition {
+    CONFIGURE,
+    ACTIVATE,
+    DEACTIVATE,
+    CLEANUP,
+    SHUTDOWN,
+    ERROR,
+};
+
+enum State {
+    UNCONFIGURED,
+    INACTIVE,
+    ACTIVE,
+    FINALIZED,
+};
+
+enum CallbackReturn {
+    SUCCESS,
+    FAILURE,
+};
+
+class HeliosAutoAim : public rclcpp::Node {
 public:
-    HeliosAutoAim(const rclcpp::NodeOptions & options);
+    HeliosAutoAim(const rclcpp::NodeOptions& options);
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State & state) override;
+    CallbackReturn on_configure();
 
-    CallbackReturn on_activate(const rclcpp_lifecycle::State & state) override;
+    CallbackReturn on_activate();
 
-    CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state) override;
+    CallbackReturn on_deactivate();
 
-    CallbackReturn on_cleanup(const rclcpp_lifecycle::State & state) override;
+    CallbackReturn on_cleanup();
 
-    CallbackReturn on_shutdown(const rclcpp_lifecycle::State & state) override;
+    CallbackReturn on_shutdown();
 
-    CallbackReturn on_error(const rclcpp_lifecycle::State & state) override;
+    CallbackReturn on_error();
 private:
     std::shared_ptr<BaseDetector> detector_;
     std::shared_ptr<BasePredictor> predictor_; 
@@ -77,9 +74,15 @@ private:
     std::shared_ptr<helios_autoaim::ParamListener> param_listener_;
     helios_autoaim::Params params_;
 
+    State state_;
+
+    /**
+     * @brief image call back, main task function of this node
+     * 
+     * @param msg 
+     */
     void image_callback(sensor_msgs::msg::Image::ConstSharedPtr msg);
 
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> get_node();
 };
 
 } // namespace helios_cv

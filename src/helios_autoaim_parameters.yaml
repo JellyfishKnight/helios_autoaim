@@ -1,4 +1,9 @@
 helios_autoaim:
+  trasition: {
+    type: int,
+    default_value: 0,
+    description: "export this param to let other change the state of this node",
+  }
   autoaim_state: {
     type: string,
     default_value: "armor",

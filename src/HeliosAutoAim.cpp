@@ -1,56 +1,61 @@
 #include "HeliosAutoAim.hpp"
 #include <functional>
 #include <helios_rs_interfaces/msg/detail/send_data__struct.hpp>
+#include <rclcpp/node_options.hpp>
 #include <rclcpp/qos.hpp>
-#include <rclcpp_lifecycle/lifecycle_node.hpp>
-#include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
+#include <rclcpp/utilities.hpp>
 #include <sensor_msgs/msg/detail/image__struct.hpp>
 
 namespace helios_cv {
 
-HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions & options) : 
-    LifecycleNode("helios_autoaim", options) {}
+HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) : 
+    Node("helios_autoaim", options) {
+    // update params
+    param_listener_ = std::make_shared<helios_autoaim::ParamListener>(this);
+    params_ = param_listener_->get_params();
+    state_ = State::UNCONFIGURED;
+    // state machine
+    while (rclcpp::ok()) {
+        if (params_.trasition == Trasition::CONFIGURE && state_ == State::UNCONFIGURED) {
+            on_configure();
+        }
+    }
+}
 
-HeliosAutoAim::CallbackReturn HeliosAutoAim::on_configure(const rclcpp_lifecycle::State & state) {
+CallbackReturn HeliosAutoAim::on_configure() {
     // Create publishers and subscribers
     target_data_pub_ = this->create_publisher<helios_rs_interfaces::msg::SendData>(
         "autoaim_cmd", rclcpp::SensorDataQoS());
     image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         "image_raw", rclcpp::SensorDataQoS(), std::bind(&HeliosAutoAim::image_callback, this, std::placeholders::_1));
-    // update params
-    param_listener_ = std::make_shared<helios_autoaim::ParamListener>(get_node());
-    params_ = param_listener_->get_params();
     // create detector
     
     return CallbackReturn::SUCCESS;
 }
 
-HeliosAutoAim::CallbackReturn HeliosAutoAim::on_activate(const rclcpp_lifecycle::State & state) {
+CallbackReturn HeliosAutoAim::on_activate() {
     
     return CallbackReturn::SUCCESS;
 }
 
-HeliosAutoAim::CallbackReturn HeliosAutoAim::on_deactivate(const rclcpp_lifecycle::State & state) {
+CallbackReturn HeliosAutoAim::on_deactivate() {
 
     return CallbackReturn::SUCCESS;
 }
 
-HeliosAutoAim::CallbackReturn HeliosAutoAim::on_cleanup(const rclcpp_lifecycle::State & state) {
+CallbackReturn HeliosAutoAim::on_cleanup() {
 
     return CallbackReturn::SUCCESS;
 }
 
-HeliosAutoAim::CallbackReturn HeliosAutoAim::on_shutdown(const rclcpp_lifecycle::State & state) {
+CallbackReturn HeliosAutoAim::on_shutdown() {
 
     return CallbackReturn::SUCCESS;
 }
 
-HeliosAutoAim::CallbackReturn HeliosAutoAim::on_error(const rclcpp_lifecycle::State & state) {
-
-    return CallbackReturn::SUCCESS;
-}
-
-std::shared_ptr<rclcpp_lifecycle::LifecycleNode> HeliosAutoAim::get_node() {
+CallbackReturn HeliosAutoAim::on_error() {
     
+    return CallbackReturn::SUCCESS;
 }
+
 } // namespace helios_cv
