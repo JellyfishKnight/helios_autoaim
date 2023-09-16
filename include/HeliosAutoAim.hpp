@@ -5,6 +5,8 @@
 
 #include <iostream>
 #include <memory>
+#include <rclcpp/logger.hpp>
+#include <rclcpp/node.hpp>
 
 #include "rclcpp/rclcpp.hpp"
 #include "tf2_ros/buffer.h"
@@ -27,13 +29,13 @@
 
 namespace helios_cv {
 
-enum Trasition {
+enum Transition {
+    NONE,
     CONFIGURE,
     ACTIVATE,
     DEACTIVATE,
     CLEANUP,
     SHUTDOWN,
-    ERROR,
 };
 
 enum State {
@@ -41,28 +43,24 @@ enum State {
     INACTIVE,
     ACTIVE,
     FINALIZED,
-};
-
-enum CallbackReturn {
-    SUCCESS,
-    FAILURE,
+    ERROR,
 };
 
 class HeliosAutoAim : public rclcpp::Node {
 public:
     HeliosAutoAim(const rclcpp::NodeOptions& options);
+    
+    State on_configure();
 
-    CallbackReturn on_configure();
+    State on_activate();
 
-    CallbackReturn on_activate();
+    State on_deactivate();
 
-    CallbackReturn on_deactivate();
+    State on_cleanup();
 
-    CallbackReturn on_cleanup();
+    State on_shutdown();
 
-    CallbackReturn on_shutdown();
-
-    CallbackReturn on_error();
+    State on_error();
 private:
     std::shared_ptr<BaseDetector> detector_;
     std::shared_ptr<BasePredictor> predictor_; 
@@ -71,10 +69,16 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::SendData>::SharedPtr target_data_pub_;
 
+    rclcpp::Node* this_node_;
+
     std::shared_ptr<helios_autoaim::ParamListener> param_listener_;
     helios_autoaim::Params params_;
 
+    Transition transition_;
     State state_;
+
+    // false is energy, true is armor
+    bool last_autoaim_state_;
 
     /**
      * @brief image call back, main task function of this node
@@ -83,6 +87,7 @@ private:
      */
     void image_callback(sensor_msgs::msg::Image::ConstSharedPtr msg);
 
+    rclcpp::Logger logger_ = rclcpp::get_logger("helios_autoaim");
 };
 
 } // namespace helios_cv
