@@ -339,7 +339,7 @@ void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
     // publish visualization infos
     if (params_.debug) {
         detector_->draw_results();
-        // publish debug images
+        /// TODO: publish debug images
 
         // publish visiualization markers
         publish_markers(target);

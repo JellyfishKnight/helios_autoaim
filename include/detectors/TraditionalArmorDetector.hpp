@@ -12,6 +12,8 @@
 #include <image_transport/loader_fwds.hpp>
 #include <sensor_msgs/msg/detail/image__struct.hpp>
 
+#include "Armor.hpp"
+
 namespace helios_cv {
 
 class TraditionalArmorDetector : public BaseDetector {
