@@ -23,6 +23,7 @@ public:
 
     void set_params(helios_autoaim::Params::Predictor predictor_params) override;
 
+    std::vector<double> get_state() const override;
 private:
     
 };

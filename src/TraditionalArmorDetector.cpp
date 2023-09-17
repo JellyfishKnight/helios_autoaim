@@ -17,7 +17,7 @@ namespace helios_cv {
 
     }
 
-    void TraditionalArmorDetector::draw_results(cv::Mat& img) {
+    cv::Mat& TraditionalArmorDetector::draw_results() {
 
     }
 

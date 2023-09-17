@@ -22,6 +22,8 @@ public:
     helios_rs_interfaces::msg::Target predict_target(helios_rs_interfaces::msg::Armors armors) override;
 
     void set_params(helios_autoaim::Params::Predictor predictor_params) override;
+
+    std::vector<double> get_state() const override;
 private:
 
 };

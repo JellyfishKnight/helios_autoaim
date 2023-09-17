@@ -18,7 +18,7 @@ namespace helios_cv {
 
     }
 
-    void TraditionalEnergyDetector::draw_results(cv::Mat& img) {
+    cv::Mat& TraditionalEnergyDetector::draw_results() {
 
     }
 

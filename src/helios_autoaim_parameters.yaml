@@ -107,10 +107,3 @@ helios_autoaim:
         default_value: 10,
         description: "temp",
       }
-  fire_controller: 
-    temp: {
-      type: int,
-      default_value: 10,
-      description: "temp",
-    }
-

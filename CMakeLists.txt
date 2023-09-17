@@ -27,7 +27,7 @@ target_include_directories(
   include/
   include/detectors
   include/predictors
-  include/fire_controllers
+  include/utilities
 )
 
 target_link_libraries(

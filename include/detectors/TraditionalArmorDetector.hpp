@@ -24,7 +24,7 @@ public:
 
     helios_rs_interfaces::msg::Armors detect_targets(sensor_msgs::msg::Image::SharedPtr images) override;
 
-    void draw_results(cv::Mat& img) override;
+    cv::Mat& draw_results() override;
 
     void set_params(helios_autoaim::Params::Detector detector_params) override;
 
