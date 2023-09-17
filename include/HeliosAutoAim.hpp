@@ -101,6 +101,9 @@ private:
     Transition transition_;
     State state_;
 
+    void init_markers();
+
+    void publish_markers(helios_rs_interfaces::msg::Armors armors);
 
     /**
      * @brief image call back, main task function of this node

@@ -6,6 +6,7 @@
 #include "helios_autoaim_parameters.hpp"
 #include <cmath>
 #include <functional>
+#include <helios_rs_interfaces/msg/detail/armors__struct.hpp>
 #include <helios_rs_interfaces/msg/detail/send_data__struct.hpp>
 #include <image_transport/publisher.hpp>
 #include <memory>
@@ -131,8 +132,7 @@ State HeliosAutoAim::on_activate() {
     fire_controller_->init_fire_controller(params_.fire_controller);
     // create debug publishers    
     if (params_.debug) {
-        marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
-            "armor_marker", rclcpp::SensorDataQoS());
+        init_markers();
         binary_img_pub_ = std::make_shared<image_transport::Publisher>();
         number_img_pub_ = std::make_shared<image_transport::Publisher>();
         result_img_pub_ = std::make_shared<image_transport::Publisher>();
@@ -145,7 +145,7 @@ State HeliosAutoAim::on_activate() {
             detector_->set_cam_info(std::move(cam_info_));
             // receive cam info only once
             cam_info_sub_.reset();
-        });
+    });
     target_data_pub_ = this->create_publisher<helios_rs_interfaces::msg::SendData>(
         "autoaim_cmd", rclcpp::SensorDataQoS());
     image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
@@ -175,6 +175,60 @@ State HeliosAutoAim::on_error() {
     return State::ERROR;
 }
 
+void HeliosAutoAim::init_markers() {
+    // Visualization Marker Publisher
+    // See http://wiki.ros.org/rviz/DisplayTypes/Marker
+    if (params_.armor_autoaim) {
+        armor_marker_.ns = "armors";
+        armor_marker_.action = visualization_msgs::msg::Marker::ADD;
+        armor_marker_.type = visualization_msgs::msg::Marker::CUBE;
+        armor_marker_.scale.x = 0.05;
+        armor_marker_.scale.y = 0.125;
+        armor_marker_.color.a = 1.0;
+        armor_marker_.color.g = 0.5;
+        armor_marker_.color.b = 1.0;
+        armor_marker_.lifetime = rclcpp::Duration::from_seconds(0.1);
+
+        text_marker_.ns = "classification";
+        text_marker_.action = visualization_msgs::msg::Marker::ADD;
+        text_marker_.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+        text_marker_.scale.z = 0.1;
+        text_marker_.color.a = 1.0;
+        text_marker_.color.r = 1.0;
+        text_marker_.color.g = 1.0;
+        text_marker_.color.b = 1.0;
+        text_marker_.lifetime = rclcpp::Duration::from_seconds(0.1);
+
+        marker_pub_ =
+            this->create_publisher<visualization_msgs::msg::MarkerArray>("/detector/marker", 10);
+    } else {
+        
+    }
+}
+
+void HeliosAutoAim::publish_markers(helios_rs_interfaces::msg::Armors armors) {
+    if (params_.armor_autoaim) {
+        for (const auto & armor : armors.armors) {
+            // Fill the markers
+            armor_marker_.id++;
+            armor_marker_.scale.z = armor.type == ArmorType::SMALL ? 0.135 : 0.23;
+            armor_marker_.pose = armor.pose;
+            text_marker_.id++;
+            text_marker_.pose.position = armor.pose.position;
+            text_marker_.pose.position.z -= 0.1;
+            text_marker_.text = armor.number;
+            marker_array_.markers.emplace_back(armor_marker_);
+            marker_array_.markers.emplace_back(text_marker_);
+        }
+        using Marker = visualization_msgs::msg::Marker;
+        armor_marker_.action = armors.armors.empty() ? Marker::DELETE : Marker::ADD;
+        marker_array_.markers.emplace_back(armor_marker_);
+        marker_pub_->publish(marker_array_);
+    } else {
+
+    }
+}
+
 void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
     // check if params are updated
     if (param_listener_->is_old(params_)) {
@@ -184,9 +238,14 @@ void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
         fire_controller_->set_params(params_.fire_controller);
     }
     auto armors = detector_->detect_targets(std::move(msg));
+    if (params_.debug) {
+        publish_markers(armors);
+    }
     if (armors.armors.empty()) {
         RCLCPP_DEBUG(logger_, "No armor detecter");
         return ;
+    } else {
+        predictor_->predict_target(armors);
     }
     
 }

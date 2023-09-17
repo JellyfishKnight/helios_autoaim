@@ -9,6 +9,7 @@
 // https://github.com/PickNikRobotics/generate_parameter_library
 #include "helios_autoaim_parameters.hpp"
 #include <helios_rs_interfaces/msg/detail/armors__struct.hpp>
+#include <image_transport/loader_fwds.hpp>
 #include <sensor_msgs/msg/detail/image__struct.hpp>
 
 namespace helios_cv {
@@ -16,16 +17,19 @@ namespace helios_cv {
 class TraditionalArmorDetector : public BaseDetector {
 public:
     TraditionalArmorDetector(helios_autoaim::Params::Detector::ArmorDetector detector_params);
-private:
+
+    void set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) override;
+
     bool init_detector(helios_autoaim::Params::Detector detector_param) override;
 
     helios_rs_interfaces::msg::Armors detect_targets(sensor_msgs::msg::Image::SharedPtr images) override;
 
     void draw_results(cv::Mat& img) override;
 
-    helios_autoaim::Params::Detector detector_params_;
+    void set_params(helios_autoaim::Params::Detector detector_params) override;
 
-    
+    helios_autoaim::Params::Detector detector_params_;
+private:
 };
 
 } // namespace helios_cv

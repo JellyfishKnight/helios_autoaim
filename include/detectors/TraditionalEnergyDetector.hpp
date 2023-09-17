@@ -14,14 +14,17 @@ class TraditionalEnergyDetector : public BaseDetector {
 public:
     TraditionalEnergyDetector(helios_autoaim::Params::Detector::EnergyDetector detector_params);
 
+    void set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) override;
+
     bool init_detector(helios_autoaim::Params::Detector detector_param) override;
 
     helios_rs_interfaces::msg::Armors detect_targets(sensor_msgs::msg::Image::SharedPtr images) override;
 
     void draw_results(cv::Mat& img) override;
 
+    void set_params(helios_autoaim::Params::Detector detector_params) override;
 private:
-    helios_autoaim::Params::Detector detector_params_;
+    helios_autoaim::Params::Detector::EnergyDetector detector_params_;
 };
 
 } // namespace helios_cv
