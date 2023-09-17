@@ -5,16 +5,25 @@
 
 #include <iostream>
 #include <memory>
-#include <rclcpp/logger.hpp>
-#include <rclcpp/node.hpp>
 
 #include "rclcpp/rclcpp.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/transform_listener.h"
+
+#include <image_transport/image_transport.hpp>
+#include <image_transport/publisher.hpp>
+#include <image_transport/subscriber_filter.hpp>
+
 
 #include "helios_rs_interfaces/msg/send_data.hpp"
 #include "helios_rs_interfaces/msg/receive_data.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/camera_info.hpp"
+#include <visualization_msgs/msg/marker_array.hpp>
+#include "helios_rs_interfaces/msg/debug_lights.hpp"
+#include "helios_rs_interfaces/msg/debug_armors.hpp"
+
 
 #include "TraditionalArmorDetector.hpp"
 #include "TraditionalEnergyDetector.hpp"
@@ -69,23 +78,36 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<helios_rs_interfaces::msg::SendData>::SharedPtr target_data_pub_;
 
-    rclcpp::Node* this_node_;
+    // Visualization marker publisher
+    visualization_msgs::msg::Marker armor_marker_;
+    visualization_msgs::msg::Marker text_marker_;
+    visualization_msgs::msg::MarkerArray marker_array_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
 
+    // Cam Info
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
+    sensor_msgs::msg::CameraInfo::SharedPtr cam_info_;
+
+    // Debug information
+    std::shared_ptr<image_transport::Publisher> binary_img_pub_;
+    std::shared_ptr<image_transport::Publisher> number_img_pub_;
+    std::shared_ptr<image_transport::Publisher> result_img_pub_;
+
+    rclcpp::Node* this_node_;
+    // Param listener
     std::shared_ptr<helios_autoaim::ParamListener> param_listener_;
     helios_autoaim::Params params_;
 
     Transition transition_;
     State state_;
 
-    // false is energy, true is armor
-    bool last_autoaim_state_;
 
     /**
      * @brief image call back, main task function of this node
      * 
      * @param msg 
      */
-    void image_callback(sensor_msgs::msg::Image::ConstSharedPtr msg);
+    void image_callback(sensor_msgs::msg::Image::SharedPtr msg);
 
     rclcpp::Logger logger_ = rclcpp::get_logger("helios_autoaim");
 };

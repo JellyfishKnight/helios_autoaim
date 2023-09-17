@@ -14,66 +14,103 @@ helios_autoaim:
     default_value: true,
     description: "armor or energy",
   }
+  use_traditional: {
+    type: bool,
+    default_value: true,
+    description: "use traditional method",
+  }
   debug: {
     type: bool,
     default_value: false,
     description: "debug mode",
   }
   detector:
-    detect_blue_color: {
-      type: bool,
-      default_value: true,
-      description: "detect blue color",
-    }
-    binary_thres: {
+    armor_detector:
+      detect_blue_color: {
+        type: bool,
+        default_value: true,
+        description: "detect blue color",
+      }
+      binary_thres: {
+        type: int,
+        default_value: 100,
+        description: "binary threshold",
+      }
+      light:
+        min_ration: {
+          type: double,
+          default_value: 0.1,
+          description: "min ratio of light",
+        }
+        max_ration: {
+          type: double,
+          default_value: 0.4,
+          description: "max ratio of light",
+        }
+        max_angle: {
+          type: double,
+          default_value: 40.0,
+          description: "max angle of light",
+        }
+      armor:
+        min_light_ratio: {
+          type: double,
+          default_value: 0.7,
+          description: "min ratio of light",
+        }
+        min_small_center_distance: {
+          type: double,
+          default_value: 0.8,
+          description: "min distance of small center",
+        }
+        max_small_center_distance: {
+          type: double,
+          default_value: 3.0,
+          description: "max distance of small center",
+        }
+        mim_large_center_distance: {
+          type: double,
+          default_value: 3.0,
+          description: "max distance of big center",
+        }
+        max_large_center_distance: {
+          type: double,
+          default_value: 9.2,
+          description: "max distance of big center",
+        }
+        max_angle: {
+          type: double,
+          default_value: 35.0,
+          description: "max angle of armor",
+        }
+    energy_detector:
+      detect_blue_color: {
+        type: bool,
+        default_value: true,
+        description: "detect blue color",
+      }
+      binary_thres: {
+        type: int,
+        default_value: 100,
+        description: "binary threshold",
+      }
+  predictor:
+    armor_predictor:
+      temp: {
+        type: int,
+        default_value: 10,
+        description: "temp",
+      }
+    energy_predictor:
+      temp: {
+        type: int,
+        default_value: 10,
+        description: "temp",
+      }
+  fire_controller: 
+    temp: {
       type: int,
-      default_value: 100,
-      description: "binary threshold",
+      default_value: 10,
+      description: "temp",
     }
-    light:
-      min_ration: {
-        type: double,
-        default_value: 0.1,
-        description: "min ratio of light",
-      }
-      max_ration: {
-        type: double,
-        default_value: 0.4,
-        description: "max ratio of light",
-      }
-      max_angle: {
-        type: double,
-        default_value: 40.0,
-        description: "max angle of light",
-      }
-    armor:
-      min_light_ratio: {
-        type: double,
-        default_value: 0.7,
-        description: "min ratio of light",
-      }
-      min_small_center_distance: {
-        type: double,
-        default_value: 0.8,
-        description: "min distance of small center",
-      }
-      max_small_center_distance: {
-        type: double,
-        default_value: 3.0,
-        description: "max distance of small center",
-      }
-      mim_large_center_distance: {
-        type: double,
-        default_value: 3.0,
-        description: "max distance of big center",
-      }
-      max_large_center_distance: {
-        type: double,
-        default_value: 9.2,
-        description: "max distance of big center",
-      }
-      max_angle: {
-        type: double,
-        default_value: 35.0,
-        description: "max angle of armor",
-      }
+
