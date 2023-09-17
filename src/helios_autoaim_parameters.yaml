@@ -36,6 +36,22 @@ helios_autoaim:
         default_value: 100,
         description: "binary threshold",
       }
+      number_classifier: 
+        module_path: {
+          type: string,
+          default_value: "/home/jk/Projects/HeliosRS/src/helios_autoaim/module/module.onnx",
+          description: "path of number classifier",
+        }
+        label_path: {
+          type: string,
+          default_value: "/home/jk/Projects/HeliosRS/src/helios_autoaim/module/label.txt",
+          description: "path of number classifier",
+        }
+        threshold: {
+          type: double,
+          default_value: 70.0,
+          description: "threshold of number classifier",
+        }
       light:
         min_ration: {
           type: double,
@@ -95,6 +111,11 @@ helios_autoaim:
         description: "binary threshold",
       }
   predictor:
+    target_frame: {
+        type: string,
+        default_value: "gyro",
+        description: "target frame of coordinate transformation",
+    }
     armor_predictor:
       temp: {
         type: int,

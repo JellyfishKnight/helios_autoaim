@@ -3,10 +3,9 @@
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #pragma once
 
-#include <helios_rs_interfaces/msg/detail/target__struct.hpp>
+// std c++
 #include <iostream>
-#include <memory>
-
+// rclcpp
 #include "rclcpp/rclcpp.hpp"
 // tf2 
 #include "tf2_ros/buffer.h"
@@ -112,10 +111,8 @@ private:
     sensor_msgs::msg::CameraInfo::SharedPtr cam_info_;
 
     // tf utilities
-    std::string target_frame_;
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
-
     
     // Debug information
     std::shared_ptr<image_transport::Publisher> binary_img_pub_;
