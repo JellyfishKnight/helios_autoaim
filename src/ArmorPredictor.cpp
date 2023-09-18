@@ -25,4 +25,25 @@ std::vector<double> ArmorPredictor::get_state() const {
     
 }
 
+void ArmorPredictor::update_target_type(const helios_rs_interfaces::msg::Armor& armor) {
+
+}
+
+double ArmorPredictor::orientation2yaw(const geometry_msgs::msg::Quaternion& orientation) {
+
+}
+
+void ArmorPredictor::reset_kalman() {
+
+}
+
+void ArmorPredictor::armor_jump(const helios_rs_interfaces::msg::Armor tracking_armor) {
+
+}
+
+Eigen::Vector3d ArmorPredictor::state2position(const Eigen::VectorXd& state) {
+
+}
+
+
 } // namespace helios_cv
