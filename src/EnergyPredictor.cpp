@@ -1,4 +1,5 @@
 #include "EnergyPredictor.hpp"
+#include <rclcpp/time.hpp>
 
 namespace helios_cv {
 EnergyPredictor::EnergyPredictor(helios_autoaim::Params::Predictor::EnergyPredictor predictor_params) {
@@ -13,7 +14,7 @@ void EnergyPredictor::init_predictor(helios_autoaim::Params::Predictor predictor
 
 }
 
-helios_rs_interfaces::msg::Target EnergyPredictor::predict_target(helios_rs_interfaces::msg::Armors armors) {
+helios_rs_interfaces::msg::Target EnergyPredictor::predict_target(helios_rs_interfaces::msg::Armors armors, const rclcpp::Time& now) {
 
 }
 

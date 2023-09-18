@@ -125,7 +125,6 @@ private:
 
     // actually instruction to be send
     rclcpp::Publisher<helios_rs_interfaces::msg::Target>::SharedPtr target_data_pub_;
-    
     // logger
     rclcpp::Logger logger_ = rclcpp::get_logger("helios_autoaim");
 };

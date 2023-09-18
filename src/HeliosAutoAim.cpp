@@ -334,7 +334,7 @@ void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
         }
     }
     // prediction
-    auto target = predictor_->predict_target(armors);
+    auto target = predictor_->predict_target(armors, this->now());
     // publish gimbal instructions
     target_data_pub_->publish(target);
     // publish visualization infos

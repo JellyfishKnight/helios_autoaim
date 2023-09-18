@@ -19,7 +19,7 @@ public:
 
     void init_predictor(helios_autoaim::Params::Predictor predictor_param) override;
 
-    helios_rs_interfaces::msg::Target predict_target(helios_rs_interfaces::msg::Armors armors) override;
+    helios_rs_interfaces::msg::Target predict_target(helios_rs_interfaces::msg::Armors armors, const rclcpp::Time& now) override;
 
     void set_params(helios_autoaim::Params::Predictor predictor_params) override;
 
