@@ -237,19 +237,14 @@ void HeliosAutoAim::publish_markers(helios_rs_interfaces::msg::Target target) {
         linear_v_marker_.header = target.header;
         angular_v_marker_.header = target.header;
         armor_marker_.header = target.header;
-        // get state
-        /// TODO: improve this
-        // target_state[9] is last radius
-        // target_state[10] is last dz
-        auto target_state = predictor_->get_state();
         visualization_msgs::msg::MarkerArray marker_array;
         // caculate state and publish markers
         if (target.tracking) {
             // template names
-            double yaw = target_state[3], r1 = target_state[8], r2 = target_state[9];
-            double xc = target_state[0], yc = target_state[1], zc = target_state[2];
-            double dz_ = target_state[10];
-            double vxc = target_state[4], vyc = target_state[5], vzc = target_state[6], vyaw = target_state[7];
+            double yaw = target.yaw, r1 = target.radius_1, r2 = target.radius_2;
+            double xc = target.position.x, yc = target.position.y, zc = target.position.z;
+            double vxc = target.velocity.x, vyc = target.velocity.y, vzc = target.velocity.z, vyaw = target.v_yaw;
+            double dz_ = target.dz;
             // write position of car center
             position_marker_.action = visualization_msgs::msg::Marker::ADD;
             position_marker_.pose.position.x = xc;
