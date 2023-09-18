@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <string>
 
+namespace helios_cv {
+
+
 const int RED = 0;
 const int BLUE = 1;
 
@@ -65,6 +68,7 @@ struct Armor
   std::string number;
   float confidence;
   std::string classfication_result;
+};
 };
 
 #endif  // ARMOR_DETECTOR__ARMOR_HPP_

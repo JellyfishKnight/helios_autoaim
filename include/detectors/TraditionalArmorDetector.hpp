@@ -15,6 +15,11 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2/convert.h>
+
+
 #include "Armor.hpp"
 #include "NumberClassifier.hpp"
 #include "PnPSolver.hpp"
@@ -64,10 +69,12 @@ private:
 
     std::vector<Light> lights_;
     std::vector<Armor> armors_;
-
+    helios_rs_interfaces::msg::Armors armors_interfaces_;
     // frame image
     cv::Mat frame_;
     cv::Mat binary_img_;
+
+    void convert_armors_into_interfaces();
 
     rclcpp::Logger logger_ = rclcpp::get_logger("ArmorDetector");
 };

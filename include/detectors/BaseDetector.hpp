@@ -19,13 +19,6 @@
 #include <vector>
 namespace helios_cv {
 
-enum ArmorType {
-    SMALL,
-    LARGE,
-    ENERGY,
-    INVALID
-};
-
 class BaseDetector {
 public:
     BaseDetector();

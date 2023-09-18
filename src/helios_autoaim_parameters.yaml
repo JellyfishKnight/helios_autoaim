@@ -53,12 +53,12 @@ helios_autoaim:
           description: "threshold of number classifier",
         }
       light:
-        min_ration: {
+        min_ratio: {
           type: double,
           default_value: 0.1,
           description: "min ratio of light",
         }
-        max_ration: {
+        max_ratio: {
           type: double,
           default_value: 0.4,
           description: "max ratio of light",
@@ -84,7 +84,7 @@ helios_autoaim:
           default_value: 3.0,
           description: "max distance of small center",
         }
-        mim_large_center_distance: {
+        min_large_center_distance: {
           type: double,
           default_value: 3.0,
           description: "max distance of big center",
