@@ -27,6 +27,8 @@ public:
     virtual void set_params(helios_autoaim::Params::Predictor predictor_params) = 0;
 
     virtual std::vector<double> get_state() const = 0;
+
+    ~BasePredictor() = default;
 private:
 };
 

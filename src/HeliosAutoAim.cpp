@@ -14,88 +14,81 @@
 #include <rclcpp/parameter.hpp>
 #include <rclcpp/qos.hpp>
 #include <rclcpp/utilities.hpp>
+#include <thread>
 #include <utility>
 #include <vector>
 
 namespace helios_cv {
 
+using namespace std::chrono_literals;
+
 HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) : 
     Node("helios_autoaim", options) {
-    // use an incorrect way to make param library work
-    ///TODO: need improve
-    this_node_ = this;
-    std::shared_ptr<rclcpp::Node> temp(this_node_);
     // update params
-    param_listener_ = std::make_shared<helios_autoaim::ParamListener>(temp);
+    param_listener_ = std::make_shared<helios_autoaim::ParamListener>(this->get_node_parameters_interface());
     params_ = param_listener_->get_params();
     state_ = State::UNCONFIGURED;
     transition_ = Transition::NONE;
-    // state machine
-    while (rclcpp::ok()) {
-        // refresh parameters if there is any change
-        if (param_listener_->is_old(params_)) {
-            params_ = param_listener_->get_params();
-            transition_ = static_cast<Transition>(params_.transition);
+    // init activate autoaim 
+    while (state_ != State::ACTIVE) {
+        if (state_ == State::UNCONFIGURED) {
+            state_ = on_configure();
         }
-        // finalize
-        if (transition_ == Transition::SHUTDOWN) {
-            state_ = on_shutdown();
-            break;
+        if (state_ == State::INACTIVE) {
+            state_ = on_activate();
         }
-        // error handling
         if (state_ == State::ERROR) {
-            RCLCPP_WARN(logger_, "Handling error");
             state_ = on_error();
             if (state_ == State::ERROR) {
                 RCLCPP_ERROR(logger_, "Failed to handle error");
                 transition_ = Transition::SHUTDOWN;
             }
-        // configure
-        } else if (transition_ == Transition::CONFIGURE && state_ == State::UNCONFIGURED) {
-            state_ = on_configure();
-            if (state_ == State::INACTIVE) {
-                transition_ = Transition::NONE;
-                RCLCPP_DEBUG(logger_, "Autoaim configure success");
-            } else {
-                RCLCPP_ERROR(logger_, "Failed to configure");
-                state_ = State::ERROR;
+        }
+    }
+    timer_ = create_wall_timer(
+      10ms, [this]() {
+        // refresh parameters if there is any change
+        if (param_listener_->is_old(params_)) {
+            param_listener_->refresh_dynamic_parameters();
+            params_ = param_listener_->get_params();
+            transition_ = static_cast<Transition>(params_.transition);
+        }
+        if (params_.armor_autoaim != last_armor_autoaim_) {
+            // change mode, deactivate and clean up first
+            while (state_ != State::UNCONFIGURED) {
+                if (state_ == State::ACTIVE) {
+                    state_ = on_deactivate();
+                }
+                if (state_ == State::INACTIVE) {
+                    state_ = on_cleanup();
+                }
+                if (state_ == State::ERROR) {
+                    state_ = on_error();
+                    if (state_ == State::ERROR) {
+                        RCLCPP_ERROR(logger_, "Failed to handle error");
+                        transition_ = Transition::SHUTDOWN;
+                    }
+                }
             }
-        // activate
-        } else if (transition_ == Transition::ACTIVATE && state_ == State::INACTIVE) {
-            state_ = on_activate();
-            if (state_ == State::ACTIVE) {
-                transition_ = Transition::NONE;
-                RCLCPP_DEBUG(logger_, "Autoaim activate success");
-            } else {
-                RCLCPP_ERROR(logger_, "Failed to activate");
-                state_ = State::ERROR;
-            }
-        // deactivate
-        } else if (transition_ == Transition::DEACTIVATE && state_ == State::ACTIVE) {
-            state_ = on_deactivate();
-            if (state_ == State::INACTIVE) {
-                transition_ = Transition::NONE;
-                RCLCPP_DEBUG(logger_, "Autoaim deactivate success");
-            } else {
-                RCLCPP_ERROR(logger_, "Failed to deactivate");
-                state_ = State::ERROR;
-            }
-        // clean up
-        } else if (transition_ == Transition::CLEANUP && state_ == State::INACTIVE) {
-            state_ = on_cleanup();
-            if (state_ == State::UNCONFIGURED) {
-                transition_ = Transition::NONE;
-                RCLCPP_DEBUG(logger_, "Autoaim cleanup success");
-            } else {
-                RCLCPP_ERROR(logger_, "Failed to cleanup");
-                state_ = State::ERROR;
+            // reconfigure and activate
+            while (state_ != State::ACTIVE) {
+                if (state_ == State::UNCONFIGURED) {
+                    state_ = on_configure();
+                }
+                if (state_ == State::INACTIVE) {
+                    state_ = on_activate();
+                }
+                if (state_ == State::ERROR) {
+                    state_ = on_error();
+                    if (state_ == State::ERROR) {
+                        RCLCPP_ERROR(logger_, "Failed to handle error");
+                        transition_ = Transition::SHUTDOWN;
+                    }
+                }
             }
         }
-        // update state
-        param_listener_->update(std::vector<rclcpp::Parameter>{
-            rclcpp::Parameter("state", static_cast<int>(state_))});
-    }
-    RCLCPP_INFO(logger_, "Autoaim shutdown success");
+        last_armor_autoaim_ = params_.armor_autoaim;            
+    });
 }
 
 State HeliosAutoAim::on_configure() {
@@ -301,12 +294,15 @@ void HeliosAutoAim::publish_markers(helios_rs_interfaces::msg::Target target) {
 }
 
 void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
+    if (!params_.armor_autoaim) RCLCPP_WARN(logger_, "DSADASDASDDSADAS");
     // check if params are updated
     if (param_listener_->is_old(params_)) {
+        param_listener_->refresh_dynamic_parameters();
         params_ = param_listener_->get_params();
         detector_->set_params(params_.detector);
         predictor_->set_params(params_.predictor);
     }
+    if (!params_.armor_autoaim) RCLCPP_WARN(logger_, "DSADASDASDDSADAS");
     // detect armors
     auto armors = detector_->detect_targets(std::move(msg));
     if (armors.armors.empty()) {

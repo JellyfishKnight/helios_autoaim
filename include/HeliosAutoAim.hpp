@@ -70,6 +70,8 @@ private:
     // set private to avoid directly editing transition and state
     Transition transition_;
     State state_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    bool last_armor_autoaim_ = true;
 public:
     State on_configure();
 
@@ -119,7 +121,6 @@ private:
     std::shared_ptr<image_transport::Publisher> number_img_pub_;
     std::shared_ptr<image_transport::Publisher> result_img_pub_;
     // Param listener
-    rclcpp::Node* this_node_;
     std::shared_ptr<helios_autoaim::ParamListener> param_listener_;
     helios_autoaim::Params params_;
 

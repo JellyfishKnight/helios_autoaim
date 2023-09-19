@@ -39,7 +39,7 @@ helios_autoaim:
       number_classifier: 
         module_path: {
           type: string,
-          default_value: "/home/jk/Projects/HeliosRS/src/helios_autoaim/module/module.onnx",
+          default_value: "/home/jk/Projects/HeliosRS/src/helios_autoaim/module/mlp.onnx",
           description: "path of number classifier",
         }
         label_path: {

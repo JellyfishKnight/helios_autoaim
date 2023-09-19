@@ -21,7 +21,7 @@ namespace helios_cv {
 
 class BaseDetector {
 public:
-    BaseDetector();
+    BaseDetector() = default;
 
     virtual void set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) = 0;
 
@@ -33,7 +33,7 @@ public:
 
     virtual void set_params(helios_autoaim::Params::Detector detector_param) = 0;
 
-    ~BaseDetector();
+    ~BaseDetector() = default;
 };
 
 } // namespace helios_cv
