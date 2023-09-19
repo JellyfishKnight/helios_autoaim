@@ -9,11 +9,13 @@
 #include <helios_rs_interfaces/msg/detail/target__struct.hpp>
 #include <image_transport/publisher.hpp>
 #include <memory>
+#include <opencv2/core/mat.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/node_options.hpp>
 #include <rclcpp/parameter.hpp>
 #include <rclcpp/qos.hpp>
 #include <rclcpp/utilities.hpp>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -124,7 +126,7 @@ State HeliosAutoAim::on_activate() {
         init_markers();
         binary_img_pub_ = std::make_shared<image_transport::Publisher>();
         number_img_pub_ = std::make_shared<image_transport::Publisher>();
-        result_img_pub_ = std::make_shared<image_transport::Publisher>();
+        result_img_pub_ = image_transport::create_publisher(this, "/result_img");
     }
     // Create publishers and subscribers
     cam_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
@@ -154,9 +156,7 @@ State HeliosAutoAim::on_deactivate() {
     cam_info_.reset();
     target_data_pub_.reset();
     image_sub_.reset();
-    binary_img_pub_.reset();
-    number_img_pub_.reset();
-    result_img_pub_.reset();
+    result_img_pub_.shutdown();
     return State::INACTIVE;
 }
 
@@ -294,7 +294,6 @@ void HeliosAutoAim::publish_markers(helios_rs_interfaces::msg::Target target) {
 }
 
 void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
-    if (!params_.armor_autoaim) RCLCPP_WARN(logger_, "DSADASDASDDSADAS");
     // check if params are updated
     if (param_listener_->is_old(params_)) {
         param_listener_->refresh_dynamic_parameters();
@@ -302,9 +301,15 @@ void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
         detector_->set_params(params_.detector);
         predictor_->set_params(params_.predictor);
     }
-    if (!params_.armor_autoaim) RCLCPP_WARN(logger_, "DSADASDASDDSADAS");
+    // convert image
+    auto img = cv_bridge::toCvShare(msg, "rgb8")->image;
     // detect armors
-    auto armors = detector_->detect_targets(std::move(msg));
+    auto armors = detector_->detect_targets(img);
+    if (params_.debug) {
+        detector_->draw_results(img);
+        /// TODO: publish debug images
+        result_img_pub_.publish(cv_bridge::CvImage(msg->header, "mono8", img).toImageMsg());
+    }
     if (armors.armors.empty()) {
         RCLCPP_DEBUG(logger_, "No armor detecter");
         return ;
@@ -328,12 +333,8 @@ void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
     auto target = predictor_->predict_target(armors, this->now());
     // publish gimbal instructions
     target_data_pub_->publish(target);
-    // publish visualization infos
+    // publish visiualization markers
     if (params_.debug) {
-        detector_->draw_results();
-        /// TODO: publish debug images
-
-        // publish visiualization markers
         publish_markers(target);
     }
 }

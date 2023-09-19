@@ -21,7 +21,7 @@ helios_autoaim:
   }
   debug: {
     type: bool,
-    default_value: false,
+    default_value: true,
     description: "debug mode",
   }
   detector:

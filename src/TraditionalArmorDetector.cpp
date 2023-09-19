@@ -23,14 +23,11 @@ namespace helios_cv {
         return true;
     }
 
-    helios_rs_interfaces::msg::Armors TraditionalArmorDetector::detect_targets(sensor_msgs::msg::Image::SharedPtr image) {
+    helios_rs_interfaces::msg::Armors TraditionalArmorDetector::detect_targets(const cv::Mat& img) {
         if (pnp_solver_ == nullptr || number_classifier_ == nullptr) {
             RCLCPP_WARN(logger_, "Detector not initialized");
             return helios_rs_interfaces::msg::Armors();
         }
-        // convert image
-        auto img = cv_bridge::toCvShare(image, "rgb8")->image;
-        frame_ = img.clone();
         // preprocess
         binary_img_ = preprocessImage(img);
         lights_ = findLights(img, binary_img_);
@@ -44,28 +41,27 @@ namespace helios_cv {
         return armors_interfaces_;
     }
 
-    cv::Mat& TraditionalArmorDetector::draw_results() {
+    void TraditionalArmorDetector::draw_results(cv::Mat& img) {
         // Draw Lights
         for (const auto & light : lights_) {
-            cv::circle(frame_, light.top, 3, cv::Scalar(255, 255, 255), 1);
-            cv::circle(frame_, light.bottom, 3, cv::Scalar(255, 255, 255), 1);
+            cv::circle(img, light.top, 3, cv::Scalar(255, 255, 255), 1);
+            cv::circle(img, light.bottom, 3, cv::Scalar(255, 255, 255), 1);
             auto line_color = light.color == RED ? cv::Scalar(255, 255, 0) : cv::Scalar(255, 0, 255);
-            cv::line(frame_, light.top, light.bottom, line_color, 1);
+            cv::line(img, light.top, light.bottom, line_color, 1);
         }
 
         // Draw armors
         for (const auto & armor : armors_) {
-            cv::line(frame_, armor.left_light.top, armor.right_light.bottom, cv::Scalar(0, 255, 0), 2);
-            cv::line(frame_, armor.left_light.bottom, armor.right_light.top, cv::Scalar(0, 255, 0), 2);
+            cv::line(img, armor.left_light.top, armor.right_light.bottom, cv::Scalar(0, 255, 0), 2);
+            cv::line(img, armor.left_light.bottom, armor.right_light.top, cv::Scalar(0, 255, 0), 2);
         }
 
         // Show numbers and confidence
         for (const auto & armor : armors_) {
             cv::putText(
-            frame_, armor.classfication_result, armor.left_light.top, cv::FONT_HERSHEY_SIMPLEX, 0.8,
+            img, armor.classfication_result, armor.left_light.top, cv::FONT_HERSHEY_SIMPLEX, 0.8,
             cv::Scalar(0, 255, 255), 2);
         }
-        return frame_;
     }
 
     void TraditionalArmorDetector::set_params(helios_autoaim::Params::Detector detector_params) {

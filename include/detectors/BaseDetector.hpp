@@ -27,9 +27,9 @@ public:
 
     virtual bool init_detector(helios_autoaim::Params::Detector detector_param) = 0;
 
-    virtual helios_rs_interfaces::msg::Armors detect_targets(sensor_msgs::msg::Image::SharedPtr images) = 0;
+    virtual helios_rs_interfaces::msg::Armors detect_targets(const cv::Mat& images) = 0;
 
-    virtual cv::Mat& draw_results() = 0;
+    virtual void draw_results(cv::Mat& img) = 0;
 
     virtual void set_params(helios_autoaim::Params::Detector detector_param) = 0;
 

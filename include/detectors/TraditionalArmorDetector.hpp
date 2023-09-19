@@ -5,6 +5,7 @@
 
 #include "BaseDetector.hpp"
 
+#include <opencv2/core/mat.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
 
@@ -38,9 +39,9 @@ public:
 
     bool init_detector(helios_autoaim::Params::Detector detector_param) override;
 
-    helios_rs_interfaces::msg::Armors detect_targets(sensor_msgs::msg::Image::SharedPtr images) override;
+    helios_rs_interfaces::msg::Armors detect_targets(const cv::Mat& images) override;
 
-    cv::Mat& draw_results() override;
+    void draw_results(cv::Mat& img) override;
 
     void set_params(helios_autoaim::Params::Detector detector_params) override;
 

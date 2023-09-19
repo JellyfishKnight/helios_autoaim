@@ -119,11 +119,11 @@ private:
     // Debug information
     std::shared_ptr<image_transport::Publisher> binary_img_pub_;
     std::shared_ptr<image_transport::Publisher> number_img_pub_;
-    std::shared_ptr<image_transport::Publisher> result_img_pub_;
+    image_transport::Publisher result_img_pub_;
+    cv::Mat result_img;
     // Param listener
     std::shared_ptr<helios_autoaim::ParamListener> param_listener_;
     helios_autoaim::Params params_;
-
     // actually instruction to be send
     rclcpp::Publisher<helios_rs_interfaces::msg::Target>::SharedPtr target_data_pub_;
     // logger

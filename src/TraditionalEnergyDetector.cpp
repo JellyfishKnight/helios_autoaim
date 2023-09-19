@@ -14,11 +14,11 @@ namespace helios_cv {
 
     }
 
-    helios_rs_interfaces::msg::Armors TraditionalEnergyDetector::detect_targets(sensor_msgs::msg::Image::SharedPtr images) {
+    helios_rs_interfaces::msg::Armors TraditionalEnergyDetector::detect_targets(const cv::Mat& images) {
 
     }
 
-    cv::Mat& TraditionalEnergyDetector::draw_results() {
+    void TraditionalEnergyDetector::draw_results(cv::Mat& img) {
 
     }
 
