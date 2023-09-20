@@ -110,6 +110,46 @@ helios_autoaim:
         default_value: 100,
         description: "binary threshold",
       }
+      energy_thresh: {
+        type: int,
+        default_value: 100,
+        description: "energy threshold",
+      }
+      rgb_weight_r_1: {
+        type: double,
+        default_value: 0.5,
+        description: "rgb weight ratio",
+      }
+      rgb_weight_r_2: {
+        type: double,
+        default_value: 0.5,
+        description: "rgb weight ratio",
+      }
+      rgb_weight_r_3: {
+        type: double,
+        default_value: 0.5,
+        description: "rgb weight ratio",
+      }
+      rgb_weight_b_1: {
+        type: double,
+        default_value: 0.5,
+        description: "rgb weight ratio",
+      }
+      rgb_weight_b_2: {
+        type: double,
+        default_value: 0.5,
+        description: "rgb weight ratio",
+      }
+      rgb_weight_b_3: {
+        type: double,
+        default_value: 0.5,
+        description: "rgb weight ratio",
+      }
+      area_ratio: {
+        type: double,
+        default_value: 0.5,
+        description: "area ratio",
+      }
   predictor:
     target_frame: {
         type: string,
