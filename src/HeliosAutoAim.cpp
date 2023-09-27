@@ -120,7 +120,7 @@ State HeliosAutoAim::on_configure() {
 State HeliosAutoAim::on_activate() {
     // activate detector and predictor
     detector_->init_detector(params_.detector);
-    predictor_->init_predictor(params_.predictor);
+    predictor_->init_predictor(params_.predictor, tf2_buffer_);
     // create debug publishers    
     if (params_.debug) {
         init_markers();
@@ -313,21 +313,6 @@ void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
     if (armors.armors.empty()) {
         RCLCPP_DEBUG(logger_, "No armor detecter");
         return ;
-    }
-    // coordinate transform
-    for (auto & armor : armors.armors) {
-        geometry_msgs::msg::PointStamped point;
-        point.header = armors.header;
-        point.point = armor.pose.position;
-        try {
-            auto transform = tf2_buffer_->lookupTransform(
-                armors.header.frame_id, params_.predictor.target_frame, armors.header.stamp);
-            tf2::doTransform(point, point, transform);
-            armor.pose.position = point.point;
-        } catch (tf2::TransformException & ex) {
-            RCLCPP_WARN(logger_, "Failed to transform armor pose: %s", ex.what());
-            return ;
-        }
     }
     // prediction
     auto target = predictor_->predict_target(armors, this->now());

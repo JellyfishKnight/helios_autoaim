@@ -1,5 +1,8 @@
 #include "TraditionalEnergyDetector.hpp"
+#include <cmath>
 #include <helios_rs_interfaces/msg/detail/armor__struct.hpp>
+#include <opencv2/core/cvdef.h>
+#include <rclcpp/logging.hpp>
 
 namespace helios_cv {
 TraditionalEnergyDetector::TraditionalEnergyDetector(helios_autoaim::Params::Detector::EnergyDetector detector_params) {
@@ -20,22 +23,33 @@ bool TraditionalEnergyDetector::init_detector(helios_autoaim::Params::Detector d
     point_right.clear();
     pts.clear();
     pts.resize(4);
+    return true;
 }
 
 helios_rs_interfaces::msg::Armors TraditionalEnergyDetector::detect_targets(const cv::Mat& image) {
+    if (!cam_info_) {
+        RCLCPP_DEBUG(logger_, "Camera info not set!");
+        armors_.armors.clear();
+        return armors_;
+    }
     cv::Mat img = image.clone();
     cv::Mat img_thresh, img_roi;
     // binary threshold
     binary_img = preprocess(img, detector_params_.detect_blue_color);
     find_target_ = false;
+    // find fans
     if (find_target_flow(img_thresh, contours) &&
         find_target_R(contours)) {
         find_target_ = true;
         setPoint(armor_fin, circle_center_point);
         getPts(armor_fin);        
     }
+    // caculate roi area
     rectangle(image, rect_roi, cv::Scalar(255, 255, 255), 2);
-    ///TODO: return armors
+    // solve pnp
+    
+    ///TODO: return
+
 }
 
 void TraditionalEnergyDetector::draw_results(cv::Mat& img) {
@@ -75,7 +89,7 @@ cv::Mat TraditionalEnergyDetector::preprocess(const cv::Mat& src, bool isred) {
     return img_th;
 }
 
-bool TraditionalEnergyDetector::find_target_flow(const cv::Mat& src, std::vector<std::vector<cv::Point2f>> &contours) {
+bool TraditionalEnergyDetector::find_target_flow(const cv::Mat& src, std::vector<std::vector<cv::Point>> &contours) {
     cv::Mat img_target, img_left, img_right;
     std::vector<std::vector<cv::Point>> contours_left, contours_right;
     cv::RotatedRect rota_1, rota_2, rota_fin;
@@ -149,7 +163,7 @@ bool TraditionalEnergyDetector::find_target_flow(const cv::Mat& src, std::vector
     return false;
 }
 
-bool TraditionalEnergyDetector::find_target_R(std::vector<std::vector<cv::Point2f>> &contours) {
+bool TraditionalEnergyDetector::find_target_R(std::vector<std::vector<cv::Point>> &contours) {
     cv::Point2f R_, possible_r;
     cv::RotatedRect rota_1;
     float point_dis;
@@ -266,6 +280,28 @@ cv::Point2f TraditionalEnergyDetector::R_possible() {
 }
 
 void TraditionalEnergyDetector::getPts(cv::RotatedRect &armor_fin) {
+    float radian = atan2((armor_fin.center.y - circle_center_point.y), 
+                        (armor_fin.center.x - circle_center_point.x));
+    // 根据装甲板到R的角度重新设置装甲板旋转矩形的角度，
+    // 避免因为光照什么的因素使得抖动发生影响姿态解算
+    armor_fin.angle = radian * 180/ M_PI;
+    cv::Point2f rectpoint[4];
+    armor_fin.points(rectpoint);
+    if (sqrt(pow(rectpoint[0].x - rectpoint[1].x, 2) + pow(rectpoint[0].y - rectpoint[1].y, 2)) > 
+        sqrt(pow(rectpoint[1].x - rectpoint[2].x, 2) + pow(rectpoint[1].y - rectpoint[2].y, 2))) {
+        //0-1为长边
+        pts[0]=rectpoint[0];
+        pts[1]=rectpoint[1];
+        pts[2]=rectpoint[2];
+        pts[3]=rectpoint[3];
+    }else{
+        //1-2为长边
+        pts[0]=rectpoint[1];
+        pts[1]=rectpoint[2];
+        pts[2]=rectpoint[3];
+        pts[3]=rectpoint[0];
+    }
+
 }
 void TraditionalEnergyDetector::setPoint(cv::RotatedRect &armor_fin, cv::Point2f &circle_center_point){
     armor_fin.center.x += roi_point.x;

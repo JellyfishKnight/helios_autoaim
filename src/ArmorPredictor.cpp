@@ -13,7 +13,9 @@ ArmorPredictor::ArmorPredictor(helios_autoaim::Params::Predictor::ArmorPredictor
 
 void ArmorPredictor::set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) {}
 
-void ArmorPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_param) {
+void ArmorPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_param, tf2_ros::Buffer::SharedPtr tf_buffer) {
+    // receive tf buffer
+    tf2_buffer_ = tf_buffer;
     // init kalman filter
     auto f = [this](const Eigen::VectorXd & x) {
         Eigen::VectorXd x_new = x;
@@ -143,6 +145,21 @@ helios_rs_interfaces::msg::Target ArmorPredictor::predict_target(helios_rs_inter
 }
 
 void ArmorPredictor::armor_predict(helios_rs_interfaces::msg::Armors armors) {
+    // coordinate transform
+    for (auto & armor : armors.armors) {
+        geometry_msgs::msg::PointStamped point;
+        point.header = armors.header;
+        point.point = armor.pose.position;
+        try {
+            if (tf2_buffer_->canTransform(params_.target_frame, armors.header.frame_id, armors.header.stamp)) {
+                armor.pose = tf2_buffer_->transform(armor.pose, params_.target_frame);
+                armor.pose.position = point.point;
+            }
+        } catch (tf2::TransformException & ex) {
+            RCLCPP_WARN(logger_, "Failed to transform armor pose: %s", ex.what());
+            return ;
+        }
+    }
     Eigen::VectorXd prediction = ekf_.Predict();
     bool matched = false;
     // if there is no match, use directly prediction

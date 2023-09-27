@@ -10,7 +10,7 @@ void EnergyPredictor::set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_i
 
 }
 
-void EnergyPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_param) {
+void EnergyPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_param, tf2_ros::Buffer::SharedPtr tf_buffer) {
 
 }
 

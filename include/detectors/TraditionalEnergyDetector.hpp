@@ -68,7 +68,7 @@ private:
      * @return true 
      * @return false 
      */
-    bool find_target_flow(const cv::Mat& src, std::vector<std::vector<cv::Point2f>> &contours);
+    bool find_target_flow(const cv::Mat& src, std::vector<std::vector<cv::Point>> &contours);
     /**
      * @brief 寻找能量机关中心的R标
      * 
@@ -76,7 +76,7 @@ private:
      * @return true 
      * @return false 
      */
-    bool find_target_R(std::vector<std::vector<cv::Point2f>> &contours);
+    bool find_target_R(std::vector<std::vector<cv::Point>> &contours);
 
     /**
      * @brief 设置透射变换
@@ -137,7 +137,7 @@ private:
     cv::Mat detect_img;
     cv::Mat prepro_img;
     // 存放轮廓
-    std::vector<std::vector<cv::Point2f>> contours;
+    std::vector<std::vector<cv::Point>> contours;
     // 透射变换后把图像拆成两部分，两部分的点分别存在这里
     std::vector<cv::Point> point_left, point_right;
     // 透射变换的dst
