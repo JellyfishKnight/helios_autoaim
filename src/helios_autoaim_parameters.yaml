@@ -37,16 +37,6 @@ helios_autoaim:
         description: "binary threshold",
       }
       number_classifier: 
-        module_path: {
-          type: string,
-          default_value: "/home/jk/Projects/HeliosRS/src/helios_autoaim/module/mlp.onnx",
-          description: "path of number classifier",
-        }
-        label_path: {
-          type: string,
-          default_value: "/home/jk/Projects/HeliosRS/src/helios_autoaim/module/label.txt",
-          description: "path of number classifier",
-        }
         threshold: {
           type: double,
           default_value: 70.0,

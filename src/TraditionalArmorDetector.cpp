@@ -1,5 +1,8 @@
+// created by liuhan on 2023/9/15
+// Submodule of HeliosRobotSystem
+// for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #include "TraditionalArmorDetector.hpp"
-#include <helios_rs_interfaces/msg/detail/armor__struct.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <opencv2/core/mat.hpp>
 #include <rclcpp/logging.hpp>
 
@@ -9,7 +12,8 @@ namespace helios_cv {
         pnp_solver_ = nullptr;
         number_classifier_ = nullptr;
         number_classifier_ = std::make_shared<NumberClassifier>(
-            params_.number_classifier.module_path, params_.number_classifier.label_path,
+            ament_index_cpp::get_package_share_directory("helios_autoaim") + "model/armor.onnx", 
+            ament_index_cpp::get_package_share_directory("helios_autoaim") + "model/label.txt",
             params_.number_classifier.threshold);
     }
     

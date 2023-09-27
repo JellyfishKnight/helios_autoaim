@@ -3,8 +3,9 @@
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #pragma once
 
+#include <memory>
 #include <rclcpp/rclcpp.hpp>
-
+#include <ament_index_cpp/get_package_share_directory.hpp>
 // openvino
 #include "helios_autoaim_parameters.hpp"
 #include"openvino/openvino.hpp"
@@ -17,6 +18,11 @@
 #include"opencv2/highgui.hpp"
 
 #include "BaseDetector.hpp"
+#include "PnPSolver.hpp"
+
+const int NUM_CLASS = 9;//类别总数
+const int NUM_COLORS = 2;//颜色
+const float NMS_THRESH = 0.2;//NMS阈值
 
 namespace helios_cv {
 //存储检测结果
@@ -56,18 +62,32 @@ public:
 
     helios_autoaim::Params::Detector detector_params_;
 private:
+    int argmax(const float* ptr, int len);
+    cv::Mat static_resize(cv::Mat src);
     void generate_grids_and_stride(const int w, const int h, const int strides[], std::vector<GridAndStride> &grid_strides);
     void generate_yolox_proposal(std::vector<GridAndStride> &grid_strides, const float * output_buffer, float prob_threshold, std::vector<Object>& object, float scale);
     void qsort_descent_inplace(std::vector<Object> & faceobjects, int left, int right);
     void qsort_descent_inplace(std::vector<Object>& objects);
     void nms_sorted_bboxes(std::vector<Object> & faceobjects, std::vector<int>& picked, float nms_threshold);
+    /**
+     * @brief 获取模型的输出后对结果进行解码
+     * @param output_buffer 结果的首地址
+     * @param object 解码后的结果保存在这里，具体看Object的定义
+     * @param scale 输入图片对于原图片的缩放比例
+     * 
+     */
     void decode(const float* output_buffer, std::vector<Object>& object, float scale);
     // float distance(cv::Point p1, cv::Point p2);
 
     std::string model_path_;//模型路径
+    // pnp solver
+    std::shared_ptr<PnPSolver> pnp_solver_;
 
-
+    // params
     helios_autoaim::Params::Detector::ArmorDetector params_;
+    // camera info
+    cv::Point2f cam_center_;
+    sensor_msgs::msg::CameraInfo::SharedPtr cam_info_;
 
     /*----以下都是openvino的核心组件----*/
     ov::Core core_;
@@ -78,9 +98,9 @@ private:
     ov::Output<const ov::Node> input_port_;
 
 
-    cv::Mat blob;//可输入模型的数据
+    cv::Mat blob_;//可输入模型的数据
 
-    float scale;//输入大小（416*416）和原图长边的比例
+    float scale_;//输入大小（416*416）和原图长边的比例
 
 };
 
