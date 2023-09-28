@@ -2,9 +2,15 @@
 // Submodule of HeliosRobotSystem
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #include "NetArmorDetector.hpp"
+#include "Armor.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <functional>
 #include <helios_rs_interfaces/msg/detail/armor__struct.hpp>
+#include <helios_rs_interfaces/msg/detail/armors__struct.hpp>
+#include <opencv2/core/types.hpp>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <vector>
 
 namespace helios_cv {
 NetArmorDetector::NetArmorDetector(helios_autoaim::Params::Detector::ArmorDetector detector_params) {
@@ -30,7 +36,8 @@ bool NetArmorDetector::init_detector(helios_autoaim::Params::Detector detector_p
 }
 
 helios_rs_interfaces::msg::Armors NetArmorDetector::detect_targets(const cv::Mat& image) {
-    std::vector<helios_rs_interfaces::msg::Armor> armor_;
+    helios_rs_interfaces::msg::Armors armor_interfaces;
+    std::vector<Armor> armors;
     //对图像进行处理，使其变成可以传给模型的数据类型
     cv::Mat pre_img = static_resize(image);
     cv::dnn::blobFromImage(pre_img, blob_, 1.0, cv::Size(cam_info_->width, cam_info_->height), cv::Scalar(), false, false);
@@ -45,27 +52,73 @@ helios_rs_interfaces::msg::Armors NetArmorDetector::detect_targets(const cv::Mat
     std::vector<Object> objects;
     //对推理结果进行解码
     decode(output_buffer, objects, scale_);
-    ///TODO: solve pnp
+    for (auto &object : objects) {
+        if (object.confidence < params_.number_classifier.threshold || object.color != params_.detect_blue_color) {
+            continue;
+        }
+        Armor armor_target;
+        armor_target.number = NUMBER_LABEL[object.label];
+        armor_target.center.x = (object.p1.x + object.p2.x + object.p3.x + object.p4.x) / 4;
+        armor_target.center.y = (object.p1.y + object.p2.y + object.p3.y + object.p4.y) / 4;
+        armor_target.classfication_result = armor_target.number;
+        armor_target.type = judge_armor_type(object);
+        armor_target.confidence = object.confidence;
+        armors.emplace_back(armor_target);
+    }
+    // solve pnp
+    cv::Mat rvec, tvec;
+    for (const auto & armor : armors) {
+        helios_rs_interfaces::msg::Armor armor_msg;
+        cv::Mat rvec, tvec;
+        bool success = pnp_solver_->solvePnP(armor, rvec, tvec);
+        if (success) {
+            // Fill basic info
+            armor_msg.type = static_cast<int>(armor.type);
+            armor_msg.number = armor.number;
 
-    //设置返回结果
-    // for (auto &object : objects) {
-    //     if (object.confidence < 0.5) {
-    //         continue;
-    //     }
-    //     Armor armor_target;
-    //     armor_target.label = object.label;
-    //     armor_target.color = object.color;
-    //     armor_target.p1 = object.p1;
-    //     armor_target.p2 = object.p2;
-    //     armor_target.p3 = object.p3;
-    //     armor_target.p4 = object.p4;
+            // Fill pose
+            armor_msg.pose.position.x = tvec.at<double>(0);
+            armor_msg.pose.position.y = tvec.at<double>(1);
+            armor_msg.pose.position.z = tvec.at<double>(2);
+            // rvec to 3x3 rotation matrix
+            cv::Mat rotation_matrix;
+            cv::Rodrigues(rvec, rotation_matrix);
+            // rotation matrix to quaternion
+            tf2::Matrix3x3 tf2_rotation_matrix(
+            rotation_matrix.at<double>(0, 0), rotation_matrix.at<double>(0, 1),
+            rotation_matrix.at<double>(0, 2), rotation_matrix.at<double>(1, 0),
+            rotation_matrix.at<double>(1, 1), rotation_matrix.at<double>(1, 2),
+            rotation_matrix.at<double>(2, 0), rotation_matrix.at<double>(2, 1),
+            rotation_matrix.at<double>(2, 2));
+            tf2::Quaternion tf2_q;
+            tf2_rotation_matrix.getRotation(tf2_q);
+            armor_msg.pose.orientation = tf2::toMsg(tf2_q);
 
-    //     armor_.emplace_back(armor_target);
-    //     //std::cout<<object.conf<<std::endl;
-    // }
-    
-    return armor_;
+            // Fill the distance to image center
+            armor_msg.distance_to_image_center = pnp_solver_->calculateDistanceToCenter(armor.center);
+            armor_interfaces.armors.emplace_back(armor_msg);
+        }
+    }
+    return armor_interfaces;
+}
 
+ArmorType NetArmorDetector::judge_armor_type(const Object& object) {
+    cv::Point2f light_center1, light_center2, armor_center;
+    double light_length1, light_length2;
+    light_center1 = (object.p1 + object.p2) / 2;
+    light_center2 = (object.p3 + object.p4) / 2;
+    light_length1 = cv::norm(object.p1 - object.p2);
+    light_length2 = cv::norm(object.p3 - object.p4);
+    armor_center = (light_center1 + light_center2) / 2;
+    double light_length_ratio = light_length1 < light_length2 ? light_length1 / light_length2
+                                                            : light_length2 / light_length1;
+    // Distance between the center of 2 lights (unit : light length)
+    float avg_light_length = (light_length1 + light_length2) / 2;
+    float center_distance = cv::norm(light_center1 - light_center2) / avg_light_length;
+    // Judge armor type
+    ArmorType type;
+    type = center_distance > params_.armor.min_large_center_distance ? ArmorType::LARGE : ArmorType::SMALL;
+    return type;
 }
 
 void NetArmorDetector::draw_results(cv::Mat& img) {

@@ -314,7 +314,7 @@ void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
         result_img_pub_.publish(cv_bridge::CvImage(msg->header, "mono8", img).toImageMsg());
     }
     if (armors.armors.empty()) {
-        RCLCPP_DEBUG(logger_, "No armor detecter");
+        RCLCPP_DEBUG(logger_, "No armor detected");
         return ;
     }
     // prediction

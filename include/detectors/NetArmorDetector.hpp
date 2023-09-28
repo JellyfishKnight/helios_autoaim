@@ -6,6 +6,7 @@
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <string>
 // openvino
 #include "helios_autoaim_parameters.hpp"
 #include"openvino/openvino.hpp"
@@ -23,6 +24,18 @@
 const int NUM_CLASS = 9;//类别总数
 const int NUM_COLORS = 2;//颜色
 const float NMS_THRESH = 0.2;//NMS阈值
+const std::vector<std::string> NUMBER_LABEL {
+    "Guard",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "Output",
+    "Base_Low",
+    "Base_High"
+};
+
 
 namespace helios_cv {
 //存储检测结果
@@ -69,6 +82,14 @@ private:
     void qsort_descent_inplace(std::vector<Object> & faceobjects, int left, int right);
     void qsort_descent_inplace(std::vector<Object>& objects);
     void nms_sorted_bboxes(std::vector<Object> & faceobjects, std::vector<int>& picked, float nms_threshold);
+    /**
+     * @brief 判断装甲板的类型
+     * 
+     * @param object 
+     * @return true 
+     * @return false 
+     */
+    ArmorType judge_armor_type(const Object& object);
     /**
      * @brief 获取模型的输出后对结果进行解码
      * @param output_buffer 结果的首地址
