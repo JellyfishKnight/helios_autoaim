@@ -118,11 +118,14 @@ private:
     ov::Shape tensor_shape_;
     ov::Output<const ov::Node> input_port_;
 
+    helios_rs_interfaces::msg::Armors armor_interfaces_;
+    std::vector<Armor> armors_;
 
     cv::Mat blob_;//可输入模型的数据
 
     float scale_;//输入大小（416*416）和原图长边的比例
 
+    std::vector<Object> objects_;
 };
 
 } // helios_cv

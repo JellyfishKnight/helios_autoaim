@@ -36,8 +36,6 @@ bool NetArmorDetector::init_detector(helios_autoaim::Params::Detector detector_p
 }
 
 helios_rs_interfaces::msg::Armors NetArmorDetector::detect_targets(const cv::Mat& image) {
-    helios_rs_interfaces::msg::Armors armor_interfaces;
-    std::vector<Armor> armors;
     //对图像进行处理，使其变成可以传给模型的数据类型
     cv::Mat pre_img = static_resize(image);
     cv::dnn::blobFromImage(pre_img, blob_, 1.0, cv::Size(cam_info_->width, cam_info_->height), cv::Scalar(), false, false);
@@ -49,10 +47,9 @@ helios_rs_interfaces::msg::Armors NetArmorDetector::detect_targets(const cv::Mat
     //得到推理结果
     const ov::Tensor& output = infer_request_.get_output_tensor(0);
     const float* output_buffer = output.data<const float>();
-    std::vector<Object> objects;
     //对推理结果进行解码
-    decode(output_buffer, objects, scale_);
-    for (auto &object : objects) {
+    decode(output_buffer, objects_, scale_);
+    for (auto &object : objects_) {
         if (object.confidence < params_.number_classifier.threshold || object.color != params_.detect_blue_color) {
             continue;
         }
@@ -63,11 +60,11 @@ helios_rs_interfaces::msg::Armors NetArmorDetector::detect_targets(const cv::Mat
         armor_target.classfication_result = armor_target.number;
         armor_target.type = judge_armor_type(object);
         armor_target.confidence = object.confidence;
-        armors.emplace_back(armor_target);
+        armors_.emplace_back(armor_target);
     }
     // solve pnp
     cv::Mat rvec, tvec;
-    for (const auto & armor : armors) {
+    for (const auto & armor : armors_) {
         helios_rs_interfaces::msg::Armor armor_msg;
         cv::Mat rvec, tvec;
         bool success = pnp_solver_->solvePnP(armor, rvec, tvec);
@@ -96,10 +93,10 @@ helios_rs_interfaces::msg::Armors NetArmorDetector::detect_targets(const cv::Mat
 
             // Fill the distance to image center
             armor_msg.distance_to_image_center = pnp_solver_->calculateDistanceToCenter(armor.center);
-            armor_interfaces.armors.emplace_back(armor_msg);
+            armor_interfaces_.armors.emplace_back(armor_msg);
         }
     }
-    return armor_interfaces;
+    return armor_interfaces_;
 }
 
 ArmorType NetArmorDetector::judge_armor_type(const Object& object) {
@@ -122,7 +119,20 @@ ArmorType NetArmorDetector::judge_armor_type(const Object& object) {
 }
 
 void NetArmorDetector::draw_results(cv::Mat& img) {
-    
+    // Draw armors
+    for (const auto & object : objects_) {
+        cv::line(img, object.p1, object.p2, cv::Scalar(0, 255, 0), 2);
+        cv::line(img, object.p2, object.p3, cv::Scalar(0, 255, 0), 2);
+        cv::line(img, object.p3, object.p4, cv::Scalar(0, 255, 0), 2);
+        cv::line(img, object.p4, object.p1, cv::Scalar(0, 255, 0), 2);
+    }
+
+    // Show numbers and confidence
+    for (const auto & armor : armors_) {
+        cv::putText(
+        img, armor.classfication_result, armor.left_light.top, cv::FONT_HERSHEY_SIMPLEX, 0.8,
+        cv::Scalar(0, 255, 255), 2);
+    }
 }
 
 void NetArmorDetector::set_params(helios_autoaim::Params::Detector detector_params) {
@@ -331,7 +341,6 @@ void NetArmorDetector::decode(const float* output_buffer, std::vector<Object>& o
     std::vector<GridAndStride> grid_strides;
     generate_grids_and_stride(cam_info_->width, cam_info_->height, strides, grid_strides);
     generate_yolox_proposal(grid_strides, output_buffer, 0.7, proposals, scale);
-    //std::cout<<proposals.size()<<std::endl;
     qsort_descent_inplace(proposals);
     if (proposals.size() >= 128) {
         proposals.resize(128);
