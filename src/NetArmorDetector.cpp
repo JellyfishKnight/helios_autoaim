@@ -5,8 +5,6 @@
 #include "Armor.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <functional>
-#include <helios_rs_interfaces/msg/detail/armor__struct.hpp>
-#include <helios_rs_interfaces/msg/detail/armors__struct.hpp>
 #include <opencv2/core/types.hpp>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>

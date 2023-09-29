@@ -3,6 +3,7 @@
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #include "TraditionalEnergyDetector.hpp"
 #include <cmath>
+#include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <helios_rs_interfaces/msg/detail/armor__struct.hpp>
 #include <opencv2/core/cvdef.h>
 #include <rclcpp/logging.hpp>
@@ -48,11 +49,21 @@ helios_rs_interfaces::msg::Armors TraditionalEnergyDetector::detect_targets(cons
         getPts(armor_fin);        
     }
     // caculate roi area
-    rectangle(image, rect_roi, cv::Scalar(255, 255, 255), 2);
-    // solve pnp
-    
+    rectangle(image, rect_roi, cv::Scalar(255, 255, 255), 2);    
     ///TODO: return
-
+    // return energy armor
+    helios_rs_interfaces::msg::Armor armor;
+    geometry_msgs::msg::Point point;
+    for (int i = 0; i < 4; i++) {
+        point.x = pts[i].x;
+        point.y = pts[i].y;
+        armor.points.emplace_back(point);
+    }
+    point.x = circle_center_point.x;
+    point.y = circle_center_point.y;
+    armor.points.emplace_back(point);
+    armors_.armors.emplace_back(armor);
+    return armors_;
 }
 
 void TraditionalEnergyDetector::draw_results(cv::Mat& img) {

@@ -4,6 +4,7 @@
 #include "HeliosAutoAim.hpp"
 #include "ArmorPredictor.hpp"
 #include "EnergyPredictor.hpp"
+#include "NetArmorDetector.hpp"
 #include "TraditionalArmorDetector.hpp"
 #include "TraditionalEnergyDetector.hpp"
 #include "helios_autoaim_parameters.hpp"
@@ -104,6 +105,7 @@ State HeliosAutoAim::on_configure() {
             detector_ = std::make_shared<TraditionalArmorDetector>(params_.detector.armor_detector);
         } else {
             ///TODO: use net to detect
+            detector_ = std::make_shared<NetArmorDetector>(params_.detector.armor_detector);
         }
         predictor_ = std::make_shared<ArmorPredictor>(params_.predictor.armor_predictor);
     } else {
