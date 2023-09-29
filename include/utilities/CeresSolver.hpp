@@ -3,7 +3,6 @@
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #pragma once
 
-#include "rclcpp/rclcpp.hpp"
 #include "ceres/ceres.h"
 #include "ceres/problem.h"
 #include "vector"
@@ -57,9 +56,7 @@ private:
     double w = 1.942;//1.884~2.0
     double a = 0.9125;//0.78~1.045
     bool isSolve = false;
-    bool refresh=false;
+    bool refresh = false;
 };
 
-
-
-}
+} // namespace helios_cv

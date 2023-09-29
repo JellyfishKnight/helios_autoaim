@@ -7,12 +7,10 @@ namespace helios_cv {
 
 void CeresSolver::solve_problem(Omega omega) {
     refresh = omega.refresh;
-    if(refresh==true){
+    if(refresh == true){
         CeresRefresh();
-        // cout<<"ceres refresh"<<endl;
     }
     float omega_ = omega.omega;
-    //cout<<"get: "<<omega_<<endl;
     filter_omega.push_back(omega_);
 
     a = omega.a;
@@ -20,7 +18,7 @@ void CeresSolver::solve_problem(Omega omega) {
     phi = omega.phi;
     t.push_back(omega.t);
     isSolve = omega.solve;
-    st = (omega.st>0)? omega.st: 0;
+    st = (omega.st > 0) ? omega.st: 0;
     if (isSolve == true) {
         for (long unsigned int i = st; i < filter_omega.size(); i += 2) {
             ceres::CostFunction* const_func = 
@@ -81,4 +79,4 @@ void CeresSolver::CeresRefresh() {
 }
 
 
-}
+} // namespace helios_cv
