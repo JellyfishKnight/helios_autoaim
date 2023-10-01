@@ -50,9 +50,9 @@ void EnergyPredictor::EnergyRefresh(){
     v_vec[0] = average_v_bullet;
     isSolve=false;
     refresh=true;
-    time_fin=0;
-    time_start=0;
-    time_pre=0;
+    time_fin = 0;
+    time_start = 0;
+    time_pre = 0;
     phi_ = CV_2PI/2;
     w_ = 1.942;//1.884~2.0
     a_ = 0.9125;//0.78~1.045

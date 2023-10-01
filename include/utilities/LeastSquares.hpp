@@ -35,11 +35,11 @@ typedef struct Omega {
     bool refresh;
 }Omega;
 
-class CeresSolver {
+class LeastSquares {
 public:
-    CeresSolver() = default;
+    LeastSquares() = default;
 
-    ~CeresSolver() = default;
+    ~LeastSquares() = default;
 
     void solve_problem(Omega omega);
 
@@ -57,6 +57,7 @@ private:
     double a = 0.9125;//0.78~1.045
     bool isSolve = false;
     bool refresh = false;
+    // h1351
 };
 
 } // namespace helios_cv

@@ -1,11 +1,11 @@
 // created by liuhan on 2023/9/29
 // Submodule of HeliosRobotSystem
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
-#include "CeresSolver.hpp"
+#include "LeastSquares.hpp"
 
 namespace helios_cv {
 
-void CeresSolver::solve_problem(Omega omega) {
+void LeastSquares::solve_problem(Omega omega) {
     refresh = omega.refresh;
     if(refresh == true){
         CeresRefresh();
@@ -60,7 +60,7 @@ void CeresSolver::solve_problem(Omega omega) {
     }
 }
 
-Omega CeresSolver::get_result() const {
+Omega LeastSquares::get_result() const {
     Omega omega_;
     omega_.a = a;
     omega_.w = w;
@@ -68,7 +68,7 @@ Omega CeresSolver::get_result() const {
     return omega_;
 }
 
-void CeresSolver::CeresRefresh() {
+void LeastSquares::CeresRefresh() {
     problem.reset(new ceres::Problem);
     filter_omega.clear();
     t.clear();
