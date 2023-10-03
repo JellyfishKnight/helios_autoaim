@@ -15,6 +15,7 @@ public:
     void Init(int state_param, int measure_param, int control_param=0);
     void Update(Eigen::VectorXf &measurement);
 
+    void initKalman();
     Eigen::MatrixXf predict(const Eigen::MatrixXf &control = Eigen::MatrixXf());
     Eigen::MatrixXf correct(const Eigen::VectorXf &measurement);
 

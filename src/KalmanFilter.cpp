@@ -65,4 +65,20 @@ void EigenKalmanFilter::Update(Eigen::VectorXf & measurement){
     correct(measurement);
 }
 
+void EigenKalmanFilter::initKalman(){
+    Init(3, 2, 1);
+    measure_mat_.setIdentity();
+    process_noise_.setIdentity();
+
+    process_noise_<<1, 0, 0,
+                    0, 1, 0,
+                    0, 0, 1;
+
+    measure_noise_.setIdentity();
+    measure_noise_<<20, 0,
+                    0, 20;
+    error_post_.setIdentity();
+    state_post_<<0, 0, 0;
+}
+
 } // namespace helios_cv
