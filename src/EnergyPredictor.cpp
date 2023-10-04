@@ -19,6 +19,9 @@ void EnergyPredictor::set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_i
 void EnergyPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_param, tf2_ros::Buffer::SharedPtr tf_buffer) {
     predictor_params_ = predictor_param.energy_predictor;
     tf_buffer_ = tf_buffer;
+    std::thread([this]()->void {
+        this->estimateParam(this->omega_, this->isSolve_);
+    }).detach();
 }
 
 helios_rs_interfaces::msg::Target EnergyPredictor::predict_target(helios_rs_interfaces::msg::Armors armors, const rclcpp::Time& now) {
@@ -27,19 +30,21 @@ helios_rs_interfaces::msg::Target EnergyPredictor::predict_target(helios_rs_inte
     energy_pts_.emplace_back(cv::Point2f(armors.points[2].x, armors.points[2].y))
     energy_pts_.emplace_back(cv::Point2f(armors.points[3].x, armors.points[3].y))
     energy_pts_.emplace_back(cv::Point2f(armors.points[4].x, armors.points[4].y))
+    mode_ = predictor_params_.mode;
     omega_.set_time(now);
 
 }
 
 void EnergyPredictor::set_params(helios_autoaim::Params::Predictor predictor_params) {
     predictor_params_ = predictor_params.energy_predictor;
+
 }
 
 std::vector<double> EnergyPredictor::get_state() const {
     
 }
 
-void EnergyPredictor::refresh(){
+void EnergyPredictor::energy_refresh(){
     omega_.refresh();
 
     circle_mode_ = INIT;
@@ -70,11 +75,25 @@ void EnergyPredictor::energy_predict(uint8_t mode, std::vector<cv::Point2f> &ene
         predict_rad_ = 0;
     }else{
         if(mode == BIG_ENERGY){
-            FilterOmega();
-
+            FilterOmega(omega_.dt_);
             
+            if(EnergyStateSwitch()){
+                if(std::fabs(omega_.get_err()) > 0.5){
+                    omega_.fit_cnt_++;
+
+                    if((omega_.fit_cnt_ % 40 == 0 && ceres_cnt_ == 1)||(omega_.fit_cnt_ %30 == 0 || ceres_cnt_ != 1)){
+                        circle_mode_ = STANDBY;
+                        omega_.change_st();
+                    }
+                }
+            }
+            predict_rad_ = omega_.get_rad(latency_);
+        }else{
+            predict_rad_ = 1.05 * latency_ * omega_.energy_rotation_direction_;
         }
     }
+    predict_center_ = calPredict(target_point, center, predict_rad_);
+    getPredictRect(center, energy_points_, predict_rad_);
 }
 
 void EnergyPredictor::FilterOmega(float &dt){
@@ -133,6 +152,41 @@ void EnergyPredictor::getPredictRect(cv::Point2f &center, std::vector<cv::Point2
     for(int i = 0; i < 4; i++){
         predict_point[i] = calPredict(pts[i], center, theta);
     }
+}
+
+
+void EnergyPredictor::estimateParam(Omega &omega, bool isSolve){
+    if(!isSolve){
+        continue;
+    }
+    for(int i = 0; i < omega.filter_omega_.size(); i = i + 2){
+        ceres::CostFunction* cost_func = new ceres::AutoDiffCostFunction<SinResidual, 1, 1, 1, 1>(
+            new SinResidual(omega.time_series_[i], omega.filter_omega_[i]));
+        problem.AddResidualBlock(cost_func, NULL)
+    }
+    problem.SetParameterLowerBound(&omega.a_, 0, 0.780);
+    problem.SetParameterLowerBound(&omega.a_, 0, 1.045);
+    problem.SetParameterLowerBound(&omega.w_, 0, 1.884);
+    problem.SetParameterLowerBound(&omega.w_, 0, 2.0);
+    problem.SetParameterLowerBound(&omega.phi_, 0, -CV_PI);
+    problem.SetParameterLowerBound(&omega.phi_, 0, CV_PI);
+
+    ceres::Solver::Options options;
+    options.max_num_iterations = 50;
+    options.linear_solver_type = ceres::DENSE_QR;
+    options.minimizer_progress_to_stdout = true;
+
+    ceres::Solver::Summary summary;
+    ceres::Solve(options, &problem, &summary);
+
+    std::cout<<"Final a: "<<omega.a_<<" w: "<<omega.w_<<" phi: "<<omega.phi_<<std::endl;
+
+    if(omega.a_ < 0.780) omega.a_ = 0.780;
+    else if(omega.a_ > 1.045) omega.a_ = 1.045;
+    if(omega.w_ < 0) omega.w_ = std::fabs(omega.w_);
+    if(omega.w_ < 1.884) omega.w_ = 1.884;
+    else if(omega.w_ > 2) oemga.w_ = 2;
+
 }
 
 
