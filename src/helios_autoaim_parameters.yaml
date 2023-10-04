@@ -209,3 +209,8 @@ helios_autoaim:
         default_value: 10,
         description: "temp",
       }
+      mode: {
+        type: int,
+        default_value: 0,
+        description: "0: auto_aim, 1:small_energy, 2: big_energy",
+      }
