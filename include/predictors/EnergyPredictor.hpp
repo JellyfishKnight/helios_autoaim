@@ -41,6 +41,21 @@
 
 namespace helios_cv {
 
+/*
+ *   设置代价函数  用于优化
+ */
+struct SinResidual{
+    SinResidual(double t, double omega): omega_(omega), t_(t) {}
+
+    template<class T>
+    bool operator()(const T* const a, const T* const w, const T* phi, T* residual) const {
+        residual[0] = omega_ - (a[0] * sin(w[0] * t_ + phi[0]) + 2.09 - a[0]);
+        return true;
+    }
+}
+
+
+
 class EnergyPredictor : public BasePredictor {
 public:
     EnergyPredictor(helios_autoaim::Params::Predictor::EnergyPredictor predictor_params);
@@ -55,6 +70,14 @@ public:
 
     std::vector<double> get_state() const override;
     void energy_refresh();
+
+    /**
+     * @brief 用ceres进行最小二乘拟合
+     * 
+    */
+    void estimateParam(Omega &omega, bool isSolve);
+    Omega omega_;
+    bool isSolve_;
 private:
     helios_autoaim::Params::Predictor::EnergyPredictor predictor_params_;
     tf2_ros::Buffer::SharedPtr tf_buffer_;
@@ -63,13 +86,13 @@ private:
     /**
      * @brief 预测主函数
     */
-    void energy_predict(uint8_t mode, std::vestor<cv::Point2f> &energy_points, cv::Point2f &center);
+    void energy_predict(uint8_t mode, std::vector<cv::Point2f> &energy_points, cv::Point2f &center);
 
 
     /**
      * @brief 滤波器滤波角速度
     */
-    void FilterOmega();
+    void FilterOmega(float &dt);
 
     /**
      * @brief 有限状态机
@@ -84,12 +107,14 @@ private:
 
     void getPredictRect(cv::Point2f &center, std::vector<cv::Point2f> &pts, float theta);
 
+    
+    ceres::Problem problem;
+
+
     //转速相关
     uint8_t mode_;
     uint8_t circle_mode_;
-    Omega omega_;
     float total_theta_;
-    std::vector<float> filter_omega_;
 
     int ceres_cnt_;
 
@@ -107,7 +132,6 @@ private:
 
     //标志
     bool target_;
-    bool isSolve_;
     bool reFresh_;
 
     //接受的消息
@@ -116,6 +140,7 @@ private:
     Eigen::Vector3f ypd_get_;
     float v_;
 
+    helios_autoaim::Params::Predictor::EnergyPredictor predictor_params_;
 
 };
 
