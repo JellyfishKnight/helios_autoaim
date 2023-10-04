@@ -133,15 +133,6 @@ void Omega::JudgeFanRotation(float omega){
 }
 
 
-/**
- * @brief 设置a w phi三个参数
-*/
-void Omega::set_a_w_phi(float a, float w, float phi){
-    a_ = a;
-    w_ = w;
-    phi_ = phi;
-}
-
 
 /**
  * @brief 设置时间

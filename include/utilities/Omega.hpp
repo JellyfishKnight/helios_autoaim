@@ -19,7 +19,6 @@ public:
     float get_omega();
     float get_rad(float latency);
     float get_time_gap();
-    void set_a_w_phi(float a, float w, float phi);
     void set_time(double time_t);
     void set_filter(float omega_filter);
     float get_err();
