@@ -22,16 +22,20 @@ void EnergyPredictor::init_predictor(helios_autoaim::Params::Predictor predictor
     std::thread([this]()->void {
         this->estimateParam(this->omega_, this->isSolve_);
     }).detach();
+    energy_refresh();
 }
 
 helios_rs_interfaces::msg::Target EnergyPredictor::predict_target(helios_rs_interfaces::msg::Armors armors, const rclcpp::Time& now) {
-    energy_pts_.emplace_back(cv::Point2f(armors.points[0].x, armors.points[0].y))
-    energy_pts_.emplace_back(cv::Point2f(armors.points[1].x, armors.points[1].y))
-    energy_pts_.emplace_back(cv::Point2f(armors.points[2].x, armors.points[2].y))
-    energy_pts_.emplace_back(cv::Point2f(armors.points[3].x, armors.points[3].y))
-    energy_pts_.emplace_back(cv::Point2f(armors.points[4].x, armors.points[4].y))
+    energy_pts_.emplace_back(cv::Point2f(armors.armor.points[0].x, armors.armor.points[0].y))
+    energy_pts_.emplace_back(cv::Point2f(armors.armor.points[1].x, armors.armor.points[1].y))
+    energy_pts_.emplace_back(cv::Point2f(armors.armor.points[2].x, armors.armor.points[2].y))
+    energy_pts_.emplace_back(cv::Point2f(armors.armor.points[3].x, armors.armor.points[3].y))
+    
+    center_pts_.emplace_back(cv::Point2f(armors.armor.points[4].x, armors.armor.points[4].y))
     mode_ = predictor_params_.mode;
-    omega_.set_time(now);
+    omega_.set_time(now.seconds());
+    energy_predict(mode_, energy_pts_, center_pts_)
+
 
 }
 
