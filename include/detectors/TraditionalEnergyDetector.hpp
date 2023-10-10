@@ -38,19 +38,19 @@ const int AUTO_AIM = 0;
 
 class TraditionalEnergyDetector : public BaseDetector {
 public:
-    TraditionalEnergyDetector(helios_autoaim::Params::Detector::EnergyDetector detector_params);
+    TraditionalEnergyDetector(std::shared_ptr<helios_autoaim::Params> detector_params);
 
     void set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) override;
 
-    bool init_detector(helios_autoaim::Params::Detector detector_param) override;
+    bool init_detector(std::shared_ptr<helios_autoaim::Params> params) override;
 
     helios_rs_interfaces::msg::Armors detect_targets(const cv::Mat& images) override;
 
     void draw_results(cv::Mat& img) override;
 
-    void set_params(helios_autoaim::Params::Detector detector_params) override;
+    void set_params(std::shared_ptr<helios_autoaim::Params> params) override;
 private:
-    helios_autoaim::Params::Detector::EnergyDetector detector_params_;
+    std::shared_ptr<helios_autoaim::Params> params_;
 
     /**
      * @brief 与处理

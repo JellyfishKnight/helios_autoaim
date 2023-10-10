@@ -11,18 +11,18 @@
 #include <vector>
 
 namespace helios_cv {
-NetArmorDetector::NetArmorDetector(helios_autoaim::Params::Detector::ArmorDetector detector_params) {
-    params_ = detector_params;
+NetArmorDetector::NetArmorDetector(std::shared_ptr<helios_autoaim::Params> params) {
+    params_ = params;
 }
 
 void NetArmorDetector::set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) {
     cam_info_ = cam_info;
     cam_center_ = cv::Point2f(cam_info_->k[2], cam_info_->k[5]);
-    pnp_solver_ = std::make_shared<PnPSolver>(cam_info->k, cam_info->d);
+    pnp_solver_ = std::make_shared<PnPSolver>(cam_info->k, cam_info->d, params_->pnp_solver);
 }
 
-bool NetArmorDetector::init_detector(helios_autoaim::Params::Detector detector_param) {
-    params_ = detector_param.armor_detector;
+bool NetArmorDetector::init_detector(std::shared_ptr<helios_autoaim::Params> params) {
+    params_ = params;
     model_path_ = ament_index_cpp::get_package_share_directory("helios_autoaim") + 
                     "model/armor.onnx";
     complied_model_ = core_.compile_model(model_path_, "CPU");//上车后可以改成IGPU（核显）
@@ -48,7 +48,8 @@ helios_rs_interfaces::msg::Armors NetArmorDetector::detect_targets(const cv::Mat
     //对推理结果进行解码
     decode(output_buffer, objects_, scale_);
     for (auto &object : objects_) {
-        if (object.confidence < params_.number_classifier.threshold || object.color != params_.detect_blue_color) {
+        if (object.confidence < params_->detector.armor_detector.number_classifier.threshold || 
+            object.color != params_->detector.armor_detector.detect_blue_color) {
             continue;
         }
         Armor armor_target;
@@ -112,7 +113,7 @@ ArmorType NetArmorDetector::judge_armor_type(const Object& object) {
     float center_distance = cv::norm(light_center1 - light_center2) / avg_light_length;
     // Judge armor type
     ArmorType type;
-    type = center_distance > params_.armor.min_large_center_distance ? ArmorType::LARGE : ArmorType::SMALL;
+    type = center_distance > params_->detector.armor_detector.armor.min_large_center_distance ? ArmorType::LARGE : ArmorType::SMALL;
     return type;
 }
 
@@ -133,8 +134,8 @@ void NetArmorDetector::draw_results(cv::Mat& img) {
     }
 }
 
-void NetArmorDetector::set_params(helios_autoaim::Params::Detector detector_params) {
-    params_ = detector_params.armor_detector;
+void NetArmorDetector::set_params(std::shared_ptr<helios_autoaim::Params> params) {
+    params_ = params;
 }
 
 int NetArmorDetector::argmax(const float* ptr, int len) {

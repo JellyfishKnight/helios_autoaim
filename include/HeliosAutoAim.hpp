@@ -132,7 +132,7 @@ private:
     cv::Mat result_img;
     // Param listener
     std::shared_ptr<helios_autoaim::ParamListener> param_listener_;
-    helios_autoaim::Params params_;
+    std::shared_ptr<helios_autoaim::Params> params_;
     // actually instruction to be send
     rclcpp::Publisher<helios_rs_interfaces::msg::Target>::SharedPtr target_data_pub_;
     // logger

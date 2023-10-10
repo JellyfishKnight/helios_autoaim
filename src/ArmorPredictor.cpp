@@ -10,13 +10,13 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace helios_cv {
-ArmorPredictor::ArmorPredictor(helios_autoaim::Params::Predictor::ArmorPredictor predictor_params) {
-    params_ =  predictor_params;
+ArmorPredictor::ArmorPredictor(std::shared_ptr<helios_autoaim::Params> params) {
+    params_ =  params;
 }
 
 void ArmorPredictor::set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) {}
 
-void ArmorPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_param, tf2_ros::Buffer::SharedPtr tf_buffer) {
+void ArmorPredictor::init_predictor(std::shared_ptr<helios_autoaim::Params> params, tf2_ros::Buffer::SharedPtr tf_buffer) {
     // receive tf buffer
     tf2_buffer_ = tf_buffer;
     // init kalman filter
@@ -63,7 +63,9 @@ void ArmorPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_
     };
     // update_Q - process noise covariance matrix
     auto update_Q = [this]() -> Eigen::MatrixXd {
-        double t = dt_, x = params_.ekf.sigma2_q_xyz, y = params_.ekf.sigma2_q_yaw, r = params_.ekf.sigma2_q_r;
+        double t = dt_, x = params_->predictor.armor_predictor.ekf.sigma2_q_xyz, 
+                y = params_->predictor.armor_predictor.ekf.sigma2_q_yaw, 
+                r = params_->predictor.armor_predictor.ekf.sigma2_q_r;
         double q_x_x = pow(t, 4) / 4 * x, q_x_vx = pow(t, 3) / 2 * x, q_vx_vx = pow(t, 2) * x;
         double q_y_y = pow(t, 4) / 4 * y, q_y_vy = pow(t, 3) / 2 * x, q_vy_vy = pow(t, 2) * y;
         double q_r = pow(t, 4) / 4 * r;
@@ -82,8 +84,8 @@ void ArmorPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_
     };
     auto update_R = [this](const Eigen::VectorXd &z) -> Eigen::MatrixXd {
         Eigen::DiagonalMatrix<double, 4> r;
-        double x = params_.ekf.r_xyz_factor;
-        r.diagonal() << abs(x * z[0]), abs(x * z[1]), abs(x * z[2]), params_.ekf.r_yaw;
+        double x = params_->predictor.armor_predictor.ekf.r_xyz_factor;
+        r.diagonal() << abs(x * z[0]), abs(x * z[1]), abs(x * z[2]), params_->predictor.armor_predictor.ekf.r_yaw;
         return r;
     };
     Eigen::DiagonalMatrix<double, 9> p0;
@@ -100,7 +102,7 @@ helios_rs_interfaces::msg::Target ArmorPredictor::predict_target(helios_rs_inter
     // 回传数据
     helios_rs_interfaces::msg::Target target;
     target.header.stamp = now;
-    target.header.frame_id = params_.target_frame;
+    target.header.frame_id = params_->predictor.armor_predictor.target_frame;
     // 分状态讨论：处于丢失状态，时若第一次找到装甲板，则重新初始化卡尔曼滤波器并且切换状态和发送位置。
     // 处于其他状态时，另作讨论
     if (find_state_ == LOST) {
@@ -123,7 +125,7 @@ helios_rs_interfaces::msg::Target ArmorPredictor::predict_target(helios_rs_inter
     } else {
         // 装甲板预测
         armor_predict(armors);
-        params_.max_lost = static_cast<int>(params_.lost_time_thres_ / dt_);
+        params_->predictor.armor_predictor.max_lost = static_cast<int>(params_->predictor.armor_predictor.lost_time_thres_ / dt_);
         if (find_state_ == TRACKING || find_state_ == TEMP_LOST) {
             // 数据发送
             target.position.x = target_state_(0);
@@ -154,8 +156,8 @@ void ArmorPredictor::armor_predict(helios_rs_interfaces::msg::Armors armors) {
         point.header = armors.header;
         point.point = armor.pose.position;
         try {
-            if (tf2_buffer_->canTransform(params_.target_frame, armors.header.frame_id, armors.header.stamp)) {
-                armor.pose = tf2_buffer_->transform(armor.pose, params_.target_frame);
+            if (tf2_buffer_->canTransform(params_->predictor.armor_predictor.target_frame, armors.header.frame_id, armors.header.stamp)) {
+                armor.pose = tf2_buffer_->transform(armor.pose, params_->predictor.armor_predictor.target_frame);
                 armor.pose.position = point.point;
             }
         } catch (tf2::TransformException & ex) {
@@ -203,14 +205,14 @@ void ArmorPredictor::armor_predict(helios_rs_interfaces::msg::Armors armors) {
             }
         }
         // 如果最小距离误差满足阈值，就不使用预测值
-        if (min_position_error < params_.max_match_distance && yaw_diff < params_.max_match_yaw_diff) {
+        if (min_position_error < params_->predictor.armor_predictor.max_match_distance && yaw_diff < params_->predictor.armor_predictor.max_match_yaw_diff) {
             // 如果最小距离误差满足阈值，就使用预测值
             matched = true;
             auto position = tracking_armor_.pose.position;
             double measured_yaw = orientation2yaw(tracking_armor_.pose.orientation);
             Eigen::Vector4d measurement(position.x, position.y, position.z, measured_yaw);
             target_state_ = ekf_.Correct(measurement);
-        } else if (same_id_armors_count == 1 && yaw_diff > params_.max_match_yaw_diff) {
+        } else if (same_id_armors_count == 1 && yaw_diff > params_->predictor.armor_predictor.max_match_yaw_diff) {
             armor_jump(same_id_armor);
             // RCLCPP_WARN(this->get_logger(), "Yaw Diff : %f", yaw_diff);
             // RCLCPP_WARN(this->get_logger(), "Position Diff : %f", min_position_error);
@@ -234,7 +236,7 @@ void ArmorPredictor::armor_predict(helios_rs_interfaces::msg::Armors armors) {
     if (find_state_ == DETECTING) {
         if (matched) {
             detect_cnt_++;
-            if (detect_cnt_ > params_.max_detect) {
+            if (detect_cnt_ > params_->predictor.armor_predictor.max_detect) {
                 detect_cnt_ = 0;
                 find_state_ = TRACKING;
             }
@@ -250,7 +252,7 @@ void ArmorPredictor::armor_predict(helios_rs_interfaces::msg::Armors armors) {
     } else if (find_state_ == TEMP_LOST) {
         if (!matched) {
             lost_cnt_++;
-            if (lost_cnt_ > params_.max_lost) {
+            if (lost_cnt_ > params_->predictor.armor_predictor.max_lost) {
                 RCLCPP_WARN(logger_, "Target lost!");
                 find_state_ = LOST;
                 lost_cnt_ = 0;
@@ -262,8 +264,8 @@ void ArmorPredictor::armor_predict(helios_rs_interfaces::msg::Armors armors) {
     }
 }
 
-void ArmorPredictor::set_params(helios_autoaim::Params::Predictor predictor_params) {
-    params_ = predictor_params.armor_predictor;
+void ArmorPredictor::set_params(std::shared_ptr<helios_autoaim::Params> params) {
+    params_ = params;
 }
 
 std::vector<double> ArmorPredictor::get_state() const {
@@ -332,7 +334,7 @@ void ArmorPredictor::armor_jump(const helios_rs_interfaces::msg::Armor tracking_
     Eigen::Vector3d current_position(position.x, position.y, position.z);
     Eigen::Vector3d infer_position = state2position(target_state_);
     // if the distance between current position and infer position is too large, then the state is wrong
-    if ((current_position - infer_position).norm() > params_.max_match_distance) {
+    if ((current_position - infer_position).norm() > params_->predictor.armor_predictor.max_match_distance) {
         double r = target_state_(8);
         target_state_(0) = position.x + r * cos(yaw);
         target_state_(1) = position.y + r * sin(yaw);

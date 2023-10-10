@@ -5,18 +5,18 @@
 #include <rclcpp/time.hpp>
 
 namespace helios_cv {
-EnergyPredictor::EnergyPredictor(helios_autoaim::Params::Predictor::EnergyPredictor predictor_params) {
-    predictor_params_ = predictor_params;
+EnergyPredictor::EnergyPredictor(std::shared_ptr<helios_autoaim::Params> params) {
+    params_ = params;
 }
 
 void EnergyPredictor::set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) {
     cam_info_ = cam_info;
     cam_center_ = cv::Point2f(cam_info_->k[2], cam_info_->k[5]);
-    pnp_solver_ = std::make_shared<PnPSolver>(cam_info->k, cam_info->d);
+    pnp_solver_ = std::make_shared<PnPSolver>(cam_info->k, cam_info->d, params_->pnp_solver);
 }
 
-void EnergyPredictor::init_predictor(helios_autoaim::Params::Predictor predictor_param, tf2_ros::Buffer::SharedPtr tf_buffer) {
-    predictor_params_ = predictor_param.energy_predictor;
+void EnergyPredictor::init_predictor(std::shared_ptr<helios_autoaim::Params> params, tf2_ros::Buffer::SharedPtr tf_buffer) {
+    params_ = params;
     tf_buffer_ = tf_buffer;
     std::thread([this]()->void {
         this->estimateParam(this->omega_, this->isSolve_);
@@ -31,15 +31,15 @@ helios_rs_interfaces::msg::Target EnergyPredictor::predict_target(helios_rs_inte
     energy_pts_.emplace_back(cv::Point2f(armors.armors[0].points[3].x, armors.armors[0].points[3].y));
     
     center_pts_ = cv::Point2f(armors.armors[0].points[4].x, armors.armors[0].points[4].y);
-    mode_ = predictor_params_.mode;
+    mode_ = params_->predictor.energy_predictor.mode;
     omega_.set_time(now.seconds());
     energy_predict(mode_, energy_pts_, center_pts_);
 
-    
+
 }
 
-void EnergyPredictor::set_params(helios_autoaim::Params::Predictor predictor_params) {
-    predictor_params_ = predictor_params.energy_predictor;
+void EnergyPredictor::set_params(std::shared_ptr<helios_autoaim::Params> params) {
+    params_ = params;
 
 }
 

@@ -214,3 +214,35 @@ helios_autoaim:
         default_value: 0,
         description: "0: auto_aim, 1:small_energy, 2: big_energy",
       }
+  pnp_solver: {
+    small_armor_height: {
+      type: double,
+      default_value: 55,
+      description: "small armor height",
+    },
+    small_armor_width: {
+      type: double,
+      default_value: 55,
+      description: "small armor height",
+    },
+    large_armor_height: {
+      type: double,
+      default_value: 55,
+      description: "large armor height",
+    },
+    large_armor_width: {
+      type: double,
+      default_value: 225,
+      description: "large armor width",
+    },
+    energy_armor_height: {
+      type: double,
+      default_value: 400,
+      description: "energy armor height",
+    },
+    energy_armor_width: {
+      type: double,
+      default_value: 380,
+      description: "energy armor width",
+    }
+  }

@@ -32,7 +32,7 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
     Node("helios_autoaim", options) {
     // update params
     param_listener_ = std::make_shared<helios_autoaim::ParamListener>(this->get_node_parameters_interface());
-    params_ = param_listener_->get_params();
+    *params_ = param_listener_->get_params();
     state_ = State::UNCONFIGURED;
     transition_ = Transition::NONE;
     // init activate autoaim 
@@ -54,12 +54,12 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
     timer_ = create_wall_timer(
       10ms, [this]() {
         // refresh parameters if there is any change
-        if (param_listener_->is_old(params_)) {
+        if (param_listener_->is_old(*params_)) {
             param_listener_->refresh_dynamic_parameters();
-            params_ = param_listener_->get_params();
-            transition_ = static_cast<Transition>(params_.transition);
+            *params_ = param_listener_->get_params();
+            transition_ = static_cast<Transition>(params_->transition);
         }
-        if (params_.armor_autoaim != last_armor_autoaim_) {
+        if (params_->armor_autoaim != last_armor_autoaim_) {
             // change mode, deactivate and clean up first
             while (state_ != State::UNCONFIGURED) {
                 if (state_ == State::ACTIVE) {
@@ -93,29 +93,28 @@ HeliosAutoAim::HeliosAutoAim(const rclcpp::NodeOptions& options) :
                 }
             }
         }
-        last_armor_autoaim_ = params_.armor_autoaim;            
+        last_armor_autoaim_ = params_->armor_autoaim;            
     });
 }
 
 State HeliosAutoAim::on_configure() {
     // create detector and predictor
-    if (params_.armor_autoaim) {
-        if (params_.use_traditional) {
+    if (params_->armor_autoaim) {
+        if (params_->use_traditional) {
             // use traditional way to detect
-            detector_ = std::make_shared<TraditionalArmorDetector>(params_.detector.armor_detector);
+            detector_ = std::make_shared<TraditionalArmorDetector>(params_);
         } else {
-            ///TODO: use net to detect
-            detector_ = std::make_shared<NetArmorDetector>(params_.detector.armor_detector);
+            detector_ = std::make_shared<NetArmorDetector>(params_);
         }
-        predictor_ = std::make_shared<ArmorPredictor>(params_.predictor.armor_predictor);
+        predictor_ = std::make_shared<ArmorPredictor>(params_);
     } else {
-        if (params_.use_traditional) {
+        if (params_->use_traditional) {
             // use traditional way to detect
-            detector_ = std::make_shared<TraditionalEnergyDetector>(params_.detector.energy_detector);
+            detector_ = std::make_shared<TraditionalEnergyDetector>(params_);
         } else {
             ///TODO: use net to detect
         }
-        predictor_ = std::make_shared<EnergyPredictor>(params_.predictor.energy_predictor);
+        predictor_ = std::make_shared<EnergyPredictor>(params_);
     }
     // avoid nullptr
     cam_info_ = std::make_shared<sensor_msgs::msg::CameraInfo>();
@@ -124,10 +123,10 @@ State HeliosAutoAim::on_configure() {
 
 State HeliosAutoAim::on_activate() {
     // activate detector and predictor
-    detector_->init_detector(params_.detector);
-    predictor_->init_predictor(params_.predictor, tf2_buffer_);
+    detector_->init_detector(params_);
+    predictor_->init_predictor(params_, tf2_buffer_);
     // create debug publishers    
-    if (params_.debug) {
+    if (params_->debug) {
         init_markers();
         binary_img_pub_ = std::make_shared<image_transport::Publisher>();
         number_img_pub_ = std::make_shared<image_transport::Publisher>();
@@ -180,7 +179,7 @@ State HeliosAutoAim::on_error() {
 void HeliosAutoAim::init_markers() {
     // Visualization Marker Publisher
     // See http://wiki.ros.org/rviz/DisplayTypes/Marker
-    if (params_.armor_autoaim) {
+    if (params_->armor_autoaim) {
         // the number of armor which is detected in camera
         text_marker_.ns = "classification";
         text_marker_.action = visualization_msgs::msg::Marker::ADD;
@@ -229,7 +228,7 @@ void HeliosAutoAim::init_markers() {
 }
 
 void HeliosAutoAim::publish_markers(helios_rs_interfaces::msg::Target target) {
-    if (params_.armor_autoaim) {
+    if (params_->armor_autoaim) {
         // init header
         position_marker_.header = target.header;
         linear_v_marker_.header = target.header;
@@ -300,17 +299,17 @@ void HeliosAutoAim::publish_markers(helios_rs_interfaces::msg::Target target) {
 
 void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
     // check if params are updated
-    if (param_listener_->is_old(params_)) {
+    if (param_listener_->is_old(*params_)) {
         param_listener_->refresh_dynamic_parameters();
-        params_ = param_listener_->get_params();
-        detector_->set_params(params_.detector);
-        predictor_->set_params(params_.predictor);
+        *params_ = param_listener_->get_params();
+        detector_->set_params(params_);
+        predictor_->set_params(params_);
     }
     // convert image
     auto img = cv_bridge::toCvShare(msg, "rgb8")->image;
     // detect armors
     auto armors = detector_->detect_targets(img);
-    if (params_.debug) {
+    if (params_->debug) {
         detector_->draw_results(img);
         /// TODO: publish debug images
         result_img_pub_.publish(cv_bridge::CvImage(msg->header, "mono8", img).toImageMsg());
@@ -324,7 +323,7 @@ void HeliosAutoAim::image_callback(sensor_msgs::msg::Image::SharedPtr msg) {
     // publish gimbal instructions
     target_data_pub_->publish(target);
     // publish visiualization markers
-    if (params_.debug) {
+    if (params_->debug) {
         publish_markers(target);
     }
 }

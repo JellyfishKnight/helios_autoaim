@@ -29,15 +29,15 @@ typedef enum {BALANCE, OUTPOST, NORMAL} TargetType;
 
 class ArmorPredictor : public BasePredictor {
 public:
-    ArmorPredictor(helios_autoaim::Params::Predictor::ArmorPredictor predictor_params);
+    ArmorPredictor(std::shared_ptr<helios_autoaim::Params> params);
 
     void set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) override;
 
-    void init_predictor(helios_autoaim::Params::Predictor predictor_param, tf2_ros::Buffer::SharedPtr tf_buffer) override;
+    void init_predictor(std::shared_ptr<helios_autoaim::Params> params, tf2_ros::Buffer::SharedPtr tf_buffer) override;
 
     helios_rs_interfaces::msg::Target predict_target(helios_rs_interfaces::msg::Armors armors, const rclcpp::Time& now) override;
 
-    void set_params(helios_autoaim::Params::Predictor predictor_params) override;
+    void set_params(std::shared_ptr<helios_autoaim::Params> params) override;
 
     std::vector<double> get_state() const override;
 private:
@@ -48,7 +48,7 @@ private:
      */
     void armor_predict(helios_rs_interfaces::msg::Armors armors);
 
-    helios_autoaim::Params::Predictor::ArmorPredictor params_;
+    std::shared_ptr<helios_autoaim::Params> params_;
 
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
 

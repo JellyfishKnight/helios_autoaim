@@ -24,13 +24,13 @@ public:
 
     virtual void set_cam_info(sensor_msgs::msg::CameraInfo::SharedPtr cam_info) = 0;
 
-    virtual bool init_detector(helios_autoaim::Params::Detector detector_param) = 0;
+    virtual bool init_detector(std::shared_ptr<helios_autoaim::Params> params) = 0;
 
     virtual helios_rs_interfaces::msg::Armors detect_targets(const cv::Mat& images) = 0;
 
     virtual void draw_results(cv::Mat& img) = 0;
 
-    virtual void set_params(helios_autoaim::Params::Detector detector_param) = 0;
+    virtual void set_params(std::shared_ptr<helios_autoaim::Params> params) = 0;
 
     ~BaseDetector() = default;
 };
