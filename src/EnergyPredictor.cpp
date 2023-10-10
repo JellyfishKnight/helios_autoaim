@@ -2,7 +2,6 @@
 // Submodule of HeliosRobotSystem
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #include "EnergyPredictor.hpp"
-#include "LeastSquares.hpp"
 #include <rclcpp/time.hpp>
 
 namespace helios_cv {
@@ -26,17 +25,17 @@ void EnergyPredictor::init_predictor(helios_autoaim::Params::Predictor predictor
 }
 
 helios_rs_interfaces::msg::Target EnergyPredictor::predict_target(helios_rs_interfaces::msg::Armors armors, const rclcpp::Time& now) {
-    energy_pts_.emplace_back(cv::Point2f(armors.armor.points[0].x, armors.armor.points[0].y))
-    energy_pts_.emplace_back(cv::Point2f(armors.armor.points[1].x, armors.armor.points[1].y))
-    energy_pts_.emplace_back(cv::Point2f(armors.armor.points[2].x, armors.armor.points[2].y))
-    energy_pts_.emplace_back(cv::Point2f(armors.armor.points[3].x, armors.armor.points[3].y))
+    energy_pts_.emplace_back(cv::Point2f(armors.armors[0].points[0].x, armors.armors[0].points[0].y));
+    energy_pts_.emplace_back(cv::Point2f(armors.armors[0].points[1].x, armors.armors[0].points[1].y));
+    energy_pts_.emplace_back(cv::Point2f(armors.armors[0].points[2].x, armors.armors[0].points[2].y));
+    energy_pts_.emplace_back(cv::Point2f(armors.armors[0].points[3].x, armors.armors[0].points[3].y));
     
-    center_pts_.emplace_back(cv::Point2f(armors.armor.points[4].x, armors.armor.points[4].y))
+    center_pts_ = cv::Point2f(armors.armors[0].points[4].x, armors.armors[0].points[4].y);
     mode_ = predictor_params_.mode;
     omega_.set_time(now.seconds());
-    energy_predict(mode_, energy_pts_, center_pts_)
+    energy_predict(mode_, energy_pts_, center_pts_);
 
-
+    
 }
 
 void EnergyPredictor::set_params(helios_autoaim::Params::Predictor predictor_params) {
@@ -45,7 +44,9 @@ void EnergyPredictor::set_params(helios_autoaim::Params::Predictor predictor_par
 }
 
 std::vector<double> EnergyPredictor::get_state() const {
-    
+    std::vector<double> state;
+
+    return state;
 }
 
 void EnergyPredictor::energy_refresh(){
@@ -62,7 +63,8 @@ void EnergyPredictor::energy_refresh(){
     react_t_ = 0.15;
     ceres_cnt_ = 1;
 
-    refresh_compensation();
+    // refresh_compensation();
+
     omega_kf_.initKalman();
 }
 
@@ -75,7 +77,7 @@ void EnergyPredictor::energy_predict(uint8_t mode, std::vector<cv::Point2f> &ene
     }
 
     omega_.set_theta(std::atan2((target_point - center).y, (target_point - center).x));
-    if(omega_.start == false){
+    if(omega_.start_ == false){
         predict_rad_ = 0;
     }else{
         if(mode == BIG_ENERGY){
@@ -97,11 +99,13 @@ void EnergyPredictor::energy_predict(uint8_t mode, std::vector<cv::Point2f> &ene
         }
     }
     predict_center_ = calPredict(target_point, center, predict_rad_);
-    getPredictRect(center, energy_points_, predict_rad_);
+    getPredictRect(center, energy_points, predict_rad_);
+    ///TODO: solve pnp
+
 }
 
 void EnergyPredictor::FilterOmega(float &dt){
-    omega_.trans_mat_ <<1, dt, 0.5 * dt * dt,
+    omega_kf_.trans_mat_ <<1, dt, 0.5 * dt * dt,
                         0, 1, dt,
                         0, 0, 1;
     Eigen::VectorXf measure_vec(2, 1);
@@ -113,33 +117,33 @@ void EnergyPredictor::FilterOmega(float &dt){
 }
 
 bool EnergyPredictor::EnergyStateSwitch(){
-    switch(circle_mode){
+    switch(circle_mode_){
         case INIT:
             if(omega_.FindWavePeak()){
-                circle_mode = STANDBY;
-                isSolve = false;
+                circle_mode_ = STANDBY;
+                isSolve_ = false;
                 omega_.refresh_after_wave();
             }
             return false;
         case STANDBY:
             if(omega_.get_time_gap() > 1.5){
-                circle_mode = ESTIMATE;
+                circle_mode_ = ESTIMATE;
             }
             return false;
         case ESTIMATE:
             ceres_cnt_++;
-            isSolve = true;
-            circle_mode = PREDICT;
+            isSolve_ = true;
+            circle_mode_ = PREDICT;
             return true;
         case PREDICT:
-            isSolve = false;
+            isSolve_ = false;
             return true;
         default:
             return true;
     }
 }
 
-void EnergyPredictor::calPredict(cv::Point2f &p, cv::Point2f &center, float theta)const{
+cv::Point2f EnergyPredictor::calPredict(cv::Point2f &p, cv::Point2f &center, float theta)const{
     Eigen::Matrix2f rotate_matrix;
     Eigen::Vector2f cur_vec, pre_vec;
 
@@ -154,19 +158,19 @@ void EnergyPredictor::calPredict(cv::Point2f &p, cv::Point2f &center, float thet
 
 void EnergyPredictor::getPredictRect(cv::Point2f &center, std::vector<cv::Point2f> &pts, float theta){
     for(int i = 0; i < 4; i++){
-        predict_point[i] = calPredict(pts[i], center, theta);
+        predict_point_[i] = calPredict(pts[i], center, theta);
     }
 }
 
 
 void EnergyPredictor::estimateParam(Omega &omega, bool isSolve){
     if(!isSolve){
-        continue;
+        return;
     }
     for(int i = 0; i < omega.filter_omega_.size(); i = i + 2){
         ceres::CostFunction* cost_func = new ceres::AutoDiffCostFunction<SinResidual, 1, 1, 1, 1>(
             new SinResidual(omega.time_series_[i], omega.filter_omega_[i]));
-        problem.AddResidualBlock(cost_func, NULL)
+        problem.AddResidualBlock(cost_func, NULL, &omega.a_, &omega.w_, &omega.phi_);
     }
     problem.SetParameterLowerBound(&omega.a_, 0, 0.780);
     problem.SetParameterLowerBound(&omega.a_, 0, 1.045);
@@ -183,14 +187,21 @@ void EnergyPredictor::estimateParam(Omega &omega, bool isSolve){
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
 
-    std::cout<<"Final a: "<<omega.a_<<" w: "<<omega.w_<<" phi: "<<omega.phi_<<std::endl;
+    RCLCPP_DEBUG(logger_, "Final a: %f w: %f phi: %f", omega.a_, omega.w_, omega.phi_);
 
-    if(omega.a_ < 0.780) omega.a_ = 0.780;
-    else if(omega.a_ > 1.045) omega.a_ = 1.045;
-    if(omega.w_ < 0) omega.w_ = std::fabs(omega.w_);
-    if(omega.w_ < 1.884) omega.w_ = 1.884;
-    else if(omega.w_ > 2) oemga.w_ = 2;
-
+    if (omega.a_ < 0.780) {
+        omega.a_ = 0.780;
+    } else if (omega.a_ > 1.045) {
+        omega.a_ = 1.045;
+    }
+    if (omega.w_ < 0) {
+        omega.w_ = std::abs(omega.w_);
+    }
+    if (omega.w_ < 1.884) {
+        omega.w_ = 1.884;
+    } else if (omega.w_ > 2) {
+        omega.w_ = 2;
+    }
 }
 
 

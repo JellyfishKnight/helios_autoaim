@@ -10,7 +10,6 @@
 #include "tf2_ros/buffer.h"
 // custom
 #include "BasePredictor.hpp"
-#include "LeastSquares.hpp"
 #include "KalmanFilter.hpp"
 #include "PnPSolver.hpp"
 #include "Omega.hpp"
@@ -52,9 +51,10 @@ struct SinResidual{
         residual[0] = omega_ - (a[0] * sin(w[0] * t_ + phi[0]) + 2.09 - a[0]);
         return true;
     }
-}
-
-
+private:
+    const double omega_;
+    const double t_;
+};
 
 class EnergyPredictor : public BasePredictor {
 public:
@@ -82,6 +82,9 @@ private:
     helios_autoaim::Params::Predictor::EnergyPredictor predictor_params_;
     tf2_ros::Buffer::SharedPtr tf_buffer_;
 
+    sensor_msgs::msg::CameraInfo::SharedPtr cam_info_;
+    cv::Point2f cam_center_;
+    std::shared_ptr<PnPSolver> pnp_solver_;
 
     /**
      * @brief 预测主函数
@@ -120,7 +123,7 @@ private:
 
     cv::Point2f last_point_;//上一个装甲板中心点
     cv::Point2f predict_center_;//预测的中心点
-    cv::Point2f predict_point_;//预测的装甲板四个点
+    std::vector<cv::Point2f> predict_point_;//预测的装甲板四个点
     float predict_rad_ ;//预测角度
 
     //时间
@@ -140,8 +143,7 @@ private:
     Eigen::Vector3f ypd_get_;
     float v_;
 
-    helios_autoaim::Params::Predictor::EnergyPredictor predictor_params_;
-
+    rclcpp::Logger logger_ = rclcpp::get_logger("Energy Predictor");
 };
 
 
