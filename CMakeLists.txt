@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.22.0)
-project(helios_autoaim)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+project(helios_autoaim)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
 find_package(ament_cmake_auto REQUIRED)
 find_package(Eigen3 REQUIRED)
