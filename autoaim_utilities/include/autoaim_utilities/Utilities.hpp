@@ -14,3 +14,5 @@
 #include "NumberClassifier.hpp"
 #include "Omega.hpp"
 #include "PnPSolver.hpp"
+#include "Omega.hpp"
+#include "ExtendedKalmanFilter.hpp"
