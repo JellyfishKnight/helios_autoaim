@@ -4,7 +4,6 @@
 #define ARMOR_DETECTOR__NUMBER_CLASSIFIER_HPP_
 
 // OpenCV
-#include <helios_rs_interfaces/msg/detail/armor__struct.hpp>
 #include <opencv2/opencv.hpp>
 
 // STL
