@@ -1,0 +1,11 @@
+fire_controller:
+  under_helios_rs: {
+    type: bool,
+    default_value: false,
+    description: "Use Helios RS to control the fire controller or not"
+  }
+  air_coeff: {
+    type: double,
+    default_value: 0.0,
+    description: "Coefficient for air resistance"
+  }
