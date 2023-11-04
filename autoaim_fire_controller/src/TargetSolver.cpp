@@ -10,3 +10,14 @@
  */
 #include "TargetSolver.hpp"
 
+namespace helios_cv {
+
+void TargetSolver::caculate_new_state(autoaim_interfaces::msg::Target::SharedPtr target_msg) {
+
+}
+
+void TargetSolver::get_best_armor(Eigen::Vector3d car_center, double yaw, double r, Eigen::Vector3d& best_armor) {
+
+}
+
+} // helios_cv

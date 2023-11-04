@@ -4,8 +4,24 @@ fire_controller:
     default_value: false,
     description: "Use Helios RS to control the fire controller or not"
   }
-  air_coeff: {
+  bullet_solver: 
+    bullet_speed: {
+      type: double,
+      default_value: 30.0,
+      description: "Bullet speed"
+    }
+    bullet_mass: {
+      type: double,
+      default_value: 0.05,
+      description: "Bullet mass"
+    }
+    air_coeff: {
+      type: double,
+      default_value: 0.0,
+      description: "Coefficient for air resistance"
+    }
+  latency: {
     type: double,
-    default_value: 0.0,
-    description: "Coefficient for air resistance"
+    default_value: 0.05,
+    description: "Latency of the fire controller"
   }

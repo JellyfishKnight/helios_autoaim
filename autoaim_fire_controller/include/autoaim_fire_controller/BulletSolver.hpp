@@ -10,8 +10,10 @@
  */
 #pragma once
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
 
-
+#include <rclcpp/rclcpp.hpp>
 namespace helios_cv {
 
 
@@ -28,18 +30,20 @@ public:
 
     ~BulletSolver() = default;
 
-    double iterate_pitch();
+    double iterate_pitch(Eigen::Vector3d target_xyz, double& fly_time);
 
-    void update_bullet_speed();
+    void update_bullet_speed(double received_speed);
 
     void update_bullet_params(const BulletParams& bullet_params);
+
+    bool check_bullet_velocity(double bullet_speed);
 private:
     BulletParams params_;
 
+    double v_vec_[4];
     double bullet_speed_;
-    double bullet_mass_;
-
-
+    int v_vec_pointer_ = 1;
+    double gravity_ = 9.8;
 };
 
 
