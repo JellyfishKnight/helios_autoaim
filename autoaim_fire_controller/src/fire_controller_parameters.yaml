@@ -1,8 +1,18 @@
 fire_controller:
+  debug: {
+    type: bool,
+    default_value: false,
+    description: "Debug mode"
+  }
   under_helios_rs: {
     type: bool,
     default_value: false,
     description: "Use Helios RS to control the fire controller or not"
+  }
+  is_hero: {
+    type: bool,
+    default_value: false,
+    description: "if the robot is hero"
   }
   bullet_solver: 
     bullet_speed: {
