@@ -16,6 +16,10 @@ find_package(Eigen3 REQUIRED)
 
 ament_auto_find_build_dependencies()
 
+add_definitions(
+  -DUNDER_HELIOS_RS
+)
+
 generate_parameter_library(
   fire_controller_parameters # cmake target name for the parameter library
   src/fire_controller_parameters.yaml # path to input yaml file

@@ -36,9 +36,12 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
         params_.bullet_solver.air_coeff
     });
     // create publisher
-    serial_pub_ = this->create_publisher<autoaim_interfaces::msg::SendData>("serial_send", 10);
+#ifdef UNDER_HELIOS_RS
     gimbal_pub_ = this->create_publisher<helios_control_interfaces::msg::GimbalCmd>("gimbal_cmd", 10);
     shoot_pub_ = this->create_publisher<helios_control_interfaces::msg::ShooterCmd>("shooter_cmd", 10);
+#else 
+    serial_pub_ = this->create_publisher<rm_interfaces::msg::SendData>("serial_send", 10);
+#endif
     // create subscriber
     if (params_.under_helios_rs) {
         imu_sub_ = this->create_subscription<sensor_interfaces::msg::ImuEuler>(
