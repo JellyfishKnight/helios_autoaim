@@ -58,11 +58,10 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
     // // subscriber and filter
     armors_sub_.subscribe(this, "/predictor/target", rmw_qos_profile_sensor_data);
     tf2_filter_ = std::make_shared<tf2_filter>(
-        armors_sub_, *tf2_buffer_, target_frame_, 10, this->get_node_logging_interface(),
+        armors_sub_, *tf2_buffer_, params_.target_frame, 10, this->get_node_logging_interface(),
         this->get_node_clock_interface(), std::chrono::duration<int>(2));
     // Register a callback with tf2_ros::MessageFilter to be called when transforms are available
     tf2_filter_->registerCallback(&FireController::target_callback, this);        
-
     // create process thread
     std::thread{
         [this]() {
@@ -96,9 +95,26 @@ void FireController::serial_callback(autoaim_interfaces::msg::ReceiveData::Share
 }
 
 void FireController::target_process() {
-    if (!target_msg_) {
-        RCLCPP_WARN(logger_, "null target msg");
-        return ;
+    if (!target_msg_->tracking || !target_msg_) {
+        // send data when under traditional mode
+        if (!params_.under_helios_rs) {
+            autoaim_interfaces::msg::SendData send_data;
+            send_data.find = false;
+            send_data.cmd = false;
+            send_data.number = 0;
+            serial_pub_->publish(send_data);
+        }
+    }
+    // check if msg has expired
+    if ((this->now() - target_msg_->header.stamp).seconds() > params_.message_expire_time) {
+        if (!params_.under_helios_rs) {
+            autoaim_interfaces::msg::SendData send_data;
+            send_data.find = false;
+            send_data.cmd = false;
+            send_data.number = 0;
+            serial_pub_->publish(send_data);
+        }
+        return;
     }
     // caculate new position
     Eigen::Vector3d predicted_xyz = target_solver_->get_best_armor(target_msg_, ypr_(0), latency_);
@@ -130,15 +146,15 @@ void FireController::target_process() {
     } else {
         // transform to camera coordinate
         geometry_msgs::msg::PointStamped predicted_point;
-        predicted_point.header.frame_id = target_frame_;
-        predicted_point.point.x = predicted_xyz(0);
-        predicted_point.point.y = predicted_xyz(1);
-        predicted_point.point.z = predicted_xyz(2);
+        predicted_point.header.frame_id = params_.target_frame;
+        predicted_xyz(0) = predicted_point.point.x;
+        predicted_xyz(1) = predicted_point.point.y;
+        predicted_xyz(2) = predicted_point.point.z;
         // pitch can be a absolute value
         double pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
         // transform wanted point to camera
         try {
-            predicted_point.point = tf2_buffer_->transform(predicted_point, "camera").point;
+            predicted_point.point = tf2_buffer_->transform(predicted_point, params_.target_frame).point;
         } catch (tf2::ExtrapolationException &ex) {
             RCLCPP_ERROR(logger_, "Error while transforming %s", ex.what());
             return; 
@@ -156,6 +172,7 @@ void FireController::target_process() {
         // judge shoot cmd
         bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), yaw, pitch); 
         serial_send->cmd = shoot_cmd ? 2 : 0;
+        serial_send->find = true;
         if (target_msg_->id[0] <= '9' && target_msg_->id[0] >= '0') {
             serial_send->number = target_msg_->id[0] - '0';
         } else if (target_msg_->id[0] == 'o') {

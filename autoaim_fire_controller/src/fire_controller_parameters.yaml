@@ -4,10 +4,20 @@ fire_controller:
     default_value: false,
     description: "Debug mode"
   }
+  target_frame: {
+    type: string,
+    default_value: "yaw",
+    description: "Target frame"
+  }
   under_helios_rs: {
     type: bool,
     default_value: false,
     description: "Use Helios RS to control the fire controller or not"
+  }
+  message_expire_time: {
+    type: double,
+    default_value: 0.5,
+    description: "Time to expire the message, in seconds"
   }
   is_hero: {
     type: bool,
@@ -27,8 +37,8 @@ fire_controller:
     }
     air_coeff: {
       type: double,
-      default_value: 0.0,
-      description: "Coefficient for air resistance"
+      default_value: 0.005,
+      description: "Coefficient for air resistance, can't be zero!"
     }
   latency: {
     type: double,

@@ -54,7 +54,6 @@ private:
     std::shared_ptr<ParamListener> param_listener_;
     Params params_;
     // tf2 
-    std::string target_frame_;
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
     message_filters::Subscriber<autoaim_interfaces::msg::Target> armors_sub_;
