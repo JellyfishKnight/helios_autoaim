@@ -104,6 +104,7 @@ void FireController::target_process() {
             send_data.number = 0;
             serial_pub_->publish(send_data);
         }
+        return;
     }
     // check if msg has expired
     if ((this->now() - target_msg_->header.stamp).seconds() > params_.message_expire_time) {
@@ -130,26 +131,28 @@ void FireController::target_process() {
         double pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
         double yaw = std::atan2(predicted_xyz(1), predicted_xyz(0));
         // update gimbal cmd
-        auto gimbal_cmd = std::make_unique<helios_control_interfaces::msg::GimbalCmd>();
-        gimbal_cmd->yaw = yaw;
-        gimbal_cmd->pitch = pitch;
-        gimbal_pub_->publish(std::move(gimbal_cmd));
+        helios_control_interfaces::msg::GimbalCmd gimbal_cmd;
+        gimbal_cmd.header.stamp = this->now();
+        gimbal_cmd.yaw = yaw;
+        gimbal_cmd.pitch = pitch;
+        gimbal_pub_->publish(gimbal_cmd);
         // update shoot cmd
-        auto shoot_cmd_msg = std::make_unique<helios_control_interfaces::msg::ShooterCmd>();
-        shoot_cmd_msg->shooter_mode = 2;
-        shoot_cmd_msg->dial_mode = 2;
-        // judge shoot cmd
+        helios_control_interfaces::msg::ShooterCmd shoot_cmd_msg;
+        shoot_cmd_msg.header.stamp = this->now();
+        shoot_cmd_msg.shooter_mode = 2;
+        shoot_cmd_msg.dial_mode = 2;
+        // judge shoot cmds
         bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), yaw, pitch); 
-        shoot_cmd_msg->fire_flag = shoot_cmd ? 1 : 0;
-        shoot_cmd_msg->dial_velocity_level = 10;
-        shoot_pub_->publish(std::move(shoot_cmd_msg));
+        shoot_cmd_msg.fire_flag = shoot_cmd ? 1 : 0;
+        shoot_cmd_msg.dial_velocity_level = 10;
+        shoot_pub_->publish(shoot_cmd_msg);
     } else {
         // transform to camera coordinate
         geometry_msgs::msg::PointStamped predicted_point;
         predicted_point.header.frame_id = params_.target_frame;
-        predicted_xyz(0) = predicted_point.point.x;
-        predicted_xyz(1) = predicted_point.point.y;
-        predicted_xyz(2) = predicted_point.point.z;
+        predicted_point.point.x = predicted_xyz(0);
+        predicted_point.point.y = predicted_xyz(1);
+        predicted_point.point.z = predicted_xyz(2);
         // pitch can be a absolute value
         double pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
         // transform wanted point to camera
@@ -159,30 +162,30 @@ void FireController::target_process() {
             RCLCPP_ERROR(logger_, "Error while transforming %s", ex.what());
             return; 
         }
-        predicted_point.point.x = predicted_xyz(0);
-        predicted_point.point.y = predicted_xyz(1);
-        predicted_point.point.z = predicted_xyz(2);
+        predicted_xyz(0) = predicted_point.point.x;
+        predicted_xyz(1) = predicted_point.point.y;
+        predicted_xyz(2) = predicted_point.point.z;
         // yaw should be total angle
-        double yaw = std::atan2(predicted_xyz(1), predicted_xyz(0));
+        double yaw = xyz2ypd(predicted_xyz)(0);
         // update serial send
-        auto serial_send = std::make_unique<autoaim_interfaces::msg::SendData>();
-        serial_send->yaw = yaw + ypr_(0);
-        serial_send->pitch = pitch;
+        autoaim_interfaces::msg::SendData serial_send;
+        serial_send.yaw = yaw + ypr_(0);
+        serial_send.pitch = pitch;
         // 2 is counter shoot mode
         // judge shoot cmd
         bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), yaw, pitch); 
-        serial_send->cmd = shoot_cmd ? 2 : 0;
-        serial_send->find = true;
+        serial_send.cmd = shoot_cmd ? 2 : 0;
+        serial_send.find = true;
         if (target_msg_->id[0] <= '9' && target_msg_->id[0] >= '0') {
-            serial_send->number = target_msg_->id[0] - '0';
+            serial_send.number = target_msg_->id[0] - '0';
         } else if (target_msg_->id[0] == 'o') {
-            serial_send->number = 8;
+            serial_send.number = 8;
         } else if (target_msg_->id[0] == 'g') {
-            serial_send->number = 7;
+            serial_send.number = 7;
         } else if (target_msg_->id[0] == 'b') {
-            serial_send->number = 9;
+            serial_send.number = 9;
         }
-        serial_pub_->publish(std::move(serial_send));
+        serial_pub_->publish(serial_send);
     }
     // update predict latency
     latency_ = params_.latency + fly_time + total_latency;
@@ -192,6 +195,7 @@ bool FireController::judge_shoot_cmd(double distance, double yaw, double pitch) 
     if (target_msg_->armors_num == OUTPOST_ARMOR_NUM && params_.is_hero) {
         ///TODO: 英雄前哨战开火判断
 
+        return true;
     } else {
         double armor_width = (target_msg_->armor_type == "LARGE" ? 0.23f : 0.135);
         double armor_height = 0.125f * 3;
@@ -205,5 +209,15 @@ bool FireController::judge_shoot_cmd(double distance, double yaw, double pitch) 
         }
     }
 }
+
+Eigen::Vector3d FireController::xyz2ypd(const Eigen::Vector3d &_xyz) {
+    Eigen::Vector3d delta_ypd;
+    float x = _xyz[0], y = _xyz[1], z = _xyz[2];
+    delta_ypd[0] = -atan2(-y,x) / (M_PI / 180.0);
+    delta_ypd[1] = atan2(z, sqrt(y*y + x*x)) / (M_PI / 180.0); 
+    delta_ypd[2] = sqrt(x*x + y*y + z*z);
+    return delta_ypd;
+}
+
 
 } // namespace helios_cv

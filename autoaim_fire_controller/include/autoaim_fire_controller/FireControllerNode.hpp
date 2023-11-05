@@ -85,6 +85,8 @@ private:
 
     bool judge_shoot_cmd(double distance, double yaw, double pitch);
 
+    Eigen::Vector3d xyz2ypd(const Eigen::Vector3d &_xyz);
+
     autoaim_interfaces::msg::Target::SharedPtr target_msg_;
     Eigen::Vector3d ypr_ = Eigen::Vector3d::Zero();
 
