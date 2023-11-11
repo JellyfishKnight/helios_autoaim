@@ -9,11 +9,6 @@ fire_controller:
     default_value: "yaw",
     description: "Target frame"
   }
-  under_helios_rs: {
-    type: bool,
-    default_value: false,
-    description: "Use Helios RS to control the fire controller or not"
-  }
   message_expire_time: {
     type: double,
     default_value: 0.5,

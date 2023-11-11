@@ -35,22 +35,18 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
         params_.bullet_solver.bullet_mass,
         params_.bullet_solver.air_coeff
     });
-    // create publisher
+    // create publisher and subscription
 #ifdef UNDER_HELIOS_RS
     gimbal_pub_ = this->create_publisher<helios_control_interfaces::msg::GimbalCmd>("gimbal_cmd", 10);
     shoot_pub_ = this->create_publisher<helios_control_interfaces::msg::ShooterCmd>("shooter_cmd", 10);
+    imu_sub_ = this->create_subscription<sensor_interfaces::msg::ImuEuler>(
+            "imu_euler", 10, std::bind(&FireController::imu_euler_callback, this, std::placeholders::_1));
+    // bullet_sub_ = this->create_subscription<referee_interfaces::msg::>(, , )
 #else 
     serial_pub_ = this->create_publisher<rm_interfaces::msg::SendData>("serial_send", 10);
+    serial_sub_ = this->create_subscription<autoaim_interfaces::msg::ReceiveData>(
+        "serial_data", rclcpp::SensorDataQoS(), std::bind(&FireController::serial_callback, this, std::placeholders::_1));
 #endif
-    // create subscriber
-    if (params_.under_helios_rs) {
-        imu_sub_ = this->create_subscription<sensor_interfaces::msg::ImuEuler>(
-            "imu_euler", 10, std::bind(&FireController::imu_euler_callback, this, std::placeholders::_1));
-        // bullet_sub_ = this->create_subscription<referee_interfaces::msg::>(, , )
-    } else {
-        serial_sub_ = this->create_subscription<autoaim_interfaces::msg::ReceiveData>(
-            "serial_data", rclcpp::SensorDataQoS(), std::bind(&FireController::serial_callback, this, std::placeholders::_1));
-    }
     // // 初始化tf2相关
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     // // Create the timer interface before call to waitForTransform,
@@ -100,24 +96,28 @@ void FireController::serial_callback(autoaim_interfaces::msg::ReceiveData::Share
 void FireController::target_process() {
     if (!target_msg_->tracking || !target_msg_) {
         // send data when under traditional mode
-        if (!params_.under_helios_rs) {
+#ifdef UNDER_HELIOS_RS
+
+#else
             autoaim_interfaces::msg::SendData send_data;
             send_data.find = false;
             send_data.cmd = false;
             send_data.number = 0;
             serial_pub_->publish(send_data);
-        }
+#endif
         return;
     }
     // check if msg has expired
     if ((this->now() - target_msg_->header.stamp).seconds() > params_.message_expire_time) {
-        if (!params_.under_helios_rs) {
+#ifdef UNDER_HELIOS_RS
+
+#else
             autoaim_interfaces::msg::SendData send_data;
             send_data.find = false;
             send_data.cmd = false;
             send_data.number = 0;
             serial_pub_->publish(send_data);
-        }
+#endif
         return;
     }
     // caculate new position
@@ -129,7 +129,7 @@ void FireController::target_process() {
     if (params_.debug) {
         RCLCPP_INFO(logger_, "total latency: %f", total_latency);
     }
-    if (params_.under_helios_rs) {
+#ifdef UNDER_HELIOS_RS
         // caculate yaw and pitch
         double pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
         double yaw = std::atan2(predicted_xyz(1), predicted_xyz(0));
@@ -149,7 +149,7 @@ void FireController::target_process() {
         shoot_cmd_msg.fire_flag = shoot_cmd ? 1 : 0;
         shoot_cmd_msg.dial_velocity_level = 10;
         shoot_pub_->publish(shoot_cmd_msg);
-    } else {
+#else
         // transform to camera coordinate
         geometry_msgs::msg::PointStamped predicted_point;
         predicted_point.header.frame_id = params_.target_frame;
@@ -189,7 +189,7 @@ void FireController::target_process() {
             serial_send.number = 9;
         }
         serial_pub_->publish(serial_send);
-    }
+#endif
     // update predict latency
     latency_ = params_.latency + fly_time + total_latency;
 }
