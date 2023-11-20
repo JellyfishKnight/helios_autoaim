@@ -87,8 +87,8 @@ void FireController::target_callback(autoaim_interfaces::msg::Target::SharedPtr 
 }
 
 void FireController::serial_callback(autoaim_interfaces::msg::ReceiveData::SharedPtr serial_msg) {
-    ypr_(0) = serial_msg->yaw_angle;
-    ypr_(1) = serial_msg->pitch_angle;
+    ypr_(0) = serial_msg->yaw;
+    ypr_(1) = serial_msg->pitch;
     ypr_(2) = 0;
     bullet_solver_->update_bullet_speed(serial_msg->bullet_speed);
 }
@@ -96,28 +96,11 @@ void FireController::serial_callback(autoaim_interfaces::msg::ReceiveData::Share
 void FireController::target_process() {
     if (!target_msg_->tracking || !target_msg_) {
         // send data when under traditional mode
-#ifdef UNDER_HELIOS_RS
-
-#else
-            autoaim_interfaces::msg::SendData send_data;
-            send_data.find = false;
-            send_data.cmd = false;
-            send_data.number = 0;
-            serial_pub_->publish(send_data);
-#endif
         return;
     }
     // check if msg has expired
     if ((this->now() - target_msg_->header.stamp).seconds() > params_.message_expire_time) {
-#ifdef UNDER_HELIOS_RS
-
-#else
-            autoaim_interfaces::msg::SendData send_data;
-            send_data.find = false;
-            send_data.cmd = false;
-            send_data.number = 0;
-            serial_pub_->publish(send_data);
-#endif
+        
         return;
     }
     // caculate new position
@@ -129,67 +112,25 @@ void FireController::target_process() {
     if (params_.debug) {
         RCLCPP_INFO(logger_, "total latency: %f", total_latency);
     }
-#ifdef UNDER_HELIOS_RS
-        // caculate yaw and pitch
-        double pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
-        double yaw = std::atan2(predicted_xyz(1), predicted_xyz(0));
-        // update gimbal cmd
-        helios_control_interfaces::msg::GimbalCmd gimbal_cmd;
-        gimbal_cmd.header.stamp = this->now();
-        gimbal_cmd.yaw = yaw;
-        gimbal_cmd.pitch = pitch;
-        gimbal_pub_->publish(gimbal_cmd);
-        // update shoot cmd
-        helios_control_interfaces::msg::ShooterCmd shoot_cmd_msg;
-        shoot_cmd_msg.header.stamp = this->now();
-        shoot_cmd_msg.shooter_mode = 2;
-        shoot_cmd_msg.dial_mode = 2;
-        // judge shoot cmds
-        bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), yaw, pitch); 
-        shoot_cmd_msg.fire_flag = shoot_cmd ? 1 : 0;
-        shoot_cmd_msg.dial_velocity_level = 10;
-        shoot_pub_->publish(shoot_cmd_msg);
-#else
-        // transform to camera coordinate
-        geometry_msgs::msg::PointStamped predicted_point;
-        predicted_point.header.frame_id = params_.target_frame;
-        predicted_point.point.x = predicted_xyz(0);
-        predicted_point.point.y = predicted_xyz(1);
-        predicted_point.point.z = predicted_xyz(2);
-        // pitch can be a absolute value
-        double pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
-        // transform wanted point to camera
-        try {
-            predicted_point.point = tf2_buffer_->transform(predicted_point, params_.target_frame).point;
-        } catch (tf2::ExtrapolationException &ex) {
-            RCLCPP_ERROR(logger_, "Error while transforming %s", ex.what());
-            return; 
-        }
-        predicted_xyz(0) = predicted_point.point.x;
-        predicted_xyz(1) = predicted_point.point.y;
-        predicted_xyz(2) = predicted_point.point.z;
-        // yaw should be total angle
-        double yaw = xyz2ypd(predicted_xyz)(0);
-        // update serial send
-        autoaim_interfaces::msg::SendData serial_send;
-        serial_send.yaw = yaw + ypr_(0);
-        serial_send.pitch = pitch;
-        // 2 is counter shoot mode
-        // judge shoot cmd
-        bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), yaw, pitch); 
-        serial_send.cmd = shoot_cmd ? 2 : 0;
-        serial_send.find = true;
-        if (target_msg_->id[0] <= '9' && target_msg_->id[0] >= '0') {
-            serial_send.number = target_msg_->id[0] - '0';
-        } else if (target_msg_->id[0] == 'o') {
-            serial_send.number = 8;
-        } else if (target_msg_->id[0] == 'g') {
-            serial_send.number = 7;
-        } else if (target_msg_->id[0] == 'b') {
-            serial_send.number = 9;
-        }
-        serial_pub_->publish(serial_send);
-#endif
+    // caculate yaw and pitch
+    double pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
+    double yaw = std::atan2(predicted_xyz(1), predicted_xyz(0));
+    // update gimbal cmd
+    helios_control_interfaces::msg::GimbalCmd gimbal_cmd;
+    gimbal_cmd.header.stamp = this->now();
+    gimbal_cmd.yaw = yaw;
+    gimbal_cmd.pitch = pitch;
+    gimbal_pub_->publish(gimbal_cmd);
+    // update shoot cmd
+    helios_control_interfaces::msg::ShooterCmd shoot_cmd_msg;
+    shoot_cmd_msg.header.stamp = this->now();
+    shoot_cmd_msg.shooter_mode = 2;
+    shoot_cmd_msg.dial_mode = 2;
+    // judge shoot cmds
+    bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), yaw, pitch); 
+    shoot_cmd_msg.fire_flag = shoot_cmd ? 1 : 0;
+    shoot_cmd_msg.dial_velocity_level = 10;
+    shoot_pub_->publish(shoot_cmd_msg);
     // update predict latency
     latency_ = params_.latency + fly_time + total_latency;
 }

@@ -16,7 +16,6 @@
 #include "autoaim_interfaces/msg/target.hpp"
 #ifdef UNDER_HELIOS_RS
 #include "autoaim_interfaces/msg/receive_data.hpp"
-#include "autoaim_interfaces/msg/send_data.hpp"
 #include "helios_control_interfaces/msg/shooter_cmd.hpp"
 #include "helios_control_interfaces/msg/gimbal_cmd.hpp"
 #include "sensor_interfaces/msg/imu_euler.hpp"
@@ -68,15 +67,10 @@ private:
     std::shared_ptr<TargetSolver> target_solver_;
 
     rclcpp::Subscription<autoaim_interfaces::msg::Target>::SharedPtr target_sub_;
-#ifdef UNDER_HELIOS_RS
     rclcpp::Subscription<sensor_interfaces::msg::ImuEuler>::SharedPtr imu_sub_;
     // rclcpp::Subscription<referee_interfaces::msg::BulletSpeed>::SharedPtr bullet_speed_sub_;
     rclcpp::Publisher<helios_control_interfaces::msg::GimbalCmd>::SharedPtr gimbal_pub_;
     rclcpp::Publisher<helios_control_interfaces::msg::ShooterCmd>::SharedPtr shoot_pub_;
-#else
-    rclcpp::Subscription<rm_interfaces::msg::ReceiveData>::SharedPtr serial_sub_;
-    rclcpp::Publisher<rm_interfaces::msg::SendData>::SharedPtr serial_pub_;
-#endif
 
     void target_callback(autoaim_interfaces::msg::Target::SharedPtr target_msg);
 

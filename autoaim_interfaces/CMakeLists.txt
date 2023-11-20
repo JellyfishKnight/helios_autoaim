@@ -27,7 +27,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DebugArmor.msg"
   "msg/DebugArmors.msg"
   "msg/ReceiveData.msg"
-  "msg/SendData.msg"
   # energy auto aim
   "msg/Omega.msg"
   DEPENDENCIES
