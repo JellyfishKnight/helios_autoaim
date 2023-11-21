@@ -16,8 +16,11 @@
 #include <cstddef>
 #include <fstream>
 #include <map>
+#include <rclcpp/logging.hpp>
 #include <string>
 #include <vector>
+
+#include <rclcpp/logger.hpp>
 
 #include "NumberClassifier.hpp"
 
@@ -30,7 +33,7 @@ NumberClassifier::NumberClassifier(
 : threshold(thre), ignore_classes_(ignore_classes)
 {
   net_ = cv::dnn::readNetFromONNX(model_path);
-
+  ignore_classes_ = {"negative"};
   std::ifstream label_file(label_path);
   std::string line;
   while (std::getline(label_file, line)) {
@@ -131,7 +134,6 @@ void NumberClassifier::classify(std::vector<Armor> & armors)
             return true;
           }
         }
-
         bool mismatch_armor_type = false;
         if (armor.type == ArmorType::LARGE) {
           mismatch_armor_type =

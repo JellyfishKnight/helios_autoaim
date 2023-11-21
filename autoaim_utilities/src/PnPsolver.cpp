@@ -63,14 +63,15 @@ bool PnPSolver::solvePnP(const Armor & armor, cv::Mat & rvec, cv::Mat & tvec)
   // Solve pnp
   std::vector<cv::Point3f> object_points;
   if (armor.type == ArmorType::SMALL) {
-    object_points = std::move(small_armor_points_);
+    object_points = small_armor_points_;
   } else if (armor.type == ArmorType::LARGE) {
-    object_points = std::move(large_armor_points_);
+    object_points = large_armor_points_;
   } else if (armor.type == ArmorType::ENERGY) {
-    object_points = std::move(energy_armor_points_);
+    object_points = energy_armor_points_;
   } else {
     return false;
   }
+  
   return cv::solvePnP(
     object_points, image_armor_points, camera_matrix_, dist_coeffs_, rvec, tvec, false,
     cv::SOLVEPNP_IPPE);
