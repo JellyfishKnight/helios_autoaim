@@ -26,13 +26,16 @@ public:
 
     double phi_optimization(double left, double right, double eps);
 
-    double caculate_armor_yaw(const Armor& armor, double& distance_to_image_center);
+    bool caculate_armor_yaw(const Armor& armor, double& distance_to_image_center, cv::Mat& r_mat, cv::Mat& t_vec);
 private:
     cv::Mat camera_matrix_;
     cv::Mat dist_coeffs_;
 
     std::vector<cv::Point2f> image_points_;
     std::vector<cv::Point3f> object_points_;
+
+    // The pitch and roll of armor are fixed for target
+    double roll_ = 0, pitch_ = angles::from_degrees(15);
 
     std::shared_ptr<PnPSolver> pnp_solver_;  
 

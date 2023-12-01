@@ -34,13 +34,11 @@ ProjectYaw::~ProjectYaw() {
 }
 
 double ProjectYaw::diff_function(double yaw) {
-    // The pitch and roll of armor are fixed for target
-    double roll = 0, pitch = angles::from_degrees(15);
     // Caculate rotation matrix
     cv::Mat_<double> rotation_matrix = (cv::Mat_<double>(3, 3) <<
-                                        cos(yaw) * cos(pitch), -sin(yaw) * cos(roll) + cos(yaw) * sin(pitch) * sin(roll), sin(yaw) * sin(roll) + cos(yaw) * sin(pitch) * cos(roll),
-                                        sin(yaw) * cos(pitch), cos(yaw) * cos(roll) + sin(yaw) * sin(pitch) * sin(roll), -cos(yaw) * sin(roll) + sin(yaw) * sin(pitch) * cos(roll),
-                                        -sin(pitch), cos(pitch) * sin(roll), cos(pitch) * cos(roll));
+                                        cos(yaw) * cos(pitch_), -sin(yaw) * cos(roll_) + cos(yaw) * sin(pitch_) * sin(roll_), sin(yaw) * sin(roll_) + cos(yaw) * sin(pitch_) * cos(roll_),
+                                        sin(yaw) * cos(pitch_), cos(yaw) * cos(roll_) + sin(yaw) * sin(pitch_) * sin(roll_), -cos(yaw) * sin(roll_) + sin(yaw) * sin(pitch_) * cos(roll_),
+                                        -sin(pitch_), cos(pitch_) * sin(roll_), cos(pitch_) * cos(roll_));
     // Turn rotation matrix into rotation vector
     cv::Mat rvec;
     cv::Rodrigues(rotation_matrix, rvec);
@@ -62,7 +60,9 @@ double ProjectYaw::phi_optimization(double left, double right, double eps) {
     double x2 = left + (right - left) / phi;
     double f1 = diff_function(x1);
     double f2 = diff_function(x2);
+    int iterate_cnt = 0;
     while (fabs(right - left) > eps) {
+        iterate_cnt++;
         if (f1 < f2) {
             right = x2;
             x2 = x1;
@@ -76,11 +76,15 @@ double ProjectYaw::phi_optimization(double left, double right, double eps) {
             x2 = left + (right - left) / phi;
             f2 = diff_function(x2);
         }
+        if (iterate_cnt > 10) {
+            RCLCPP_ERROR(logger_, "Phi optimization failed to converge");
+            return (left + right) / 2;
+        }
     }
     return (left + right) / 2;
 }
 
-double ProjectYaw::caculate_armor_yaw(const Armor& armor, double& distance_to_image_center) {
+bool ProjectYaw::caculate_armor_yaw(const Armor &armor, double &distance_to_image_center, cv::Mat &r_mat, cv::Mat &t_vec) {
     double yaw;
     cv::Mat rvec, tvec;
     if (pnp_solver_->solvePnP(armor, rvec, tvec)) {
@@ -96,12 +100,18 @@ double ProjectYaw::caculate_armor_yaw(const Armor& armor, double& distance_to_im
         distance_to_image_center = pnp_solver_->calculateDistanceToCenter(armor.center);
         // Get yaw in about -45 degree to 45 degree
         yaw = phi_optimization(-M_PI_4, -M_PI_4, 1e-2);
+        // Caculate rotation matrix
+        r_mat = (cv::Mat_<double>(3, 3) <<
+            cos(yaw) * cos(pitch_), -sin(yaw) * cos(roll_) + cos(yaw) * sin(pitch_) * sin(roll_), sin(yaw) * sin(roll_) + cos(yaw) * sin(pitch_) * cos(roll_),
+            sin(yaw) * cos(pitch_), cos(yaw) * cos(roll_) + sin(yaw) * sin(pitch_) * sin(roll_), -cos(yaw) * sin(roll_) + sin(yaw) * sin(pitch_) * cos(roll_),
+            -sin(pitch_), cos(pitch_) * sin(roll_), cos(pitch_) * cos(roll_));        
+        // Get translation vector
+        t_vec = tvec;
+        return true;
     } else {
         RCLCPP_ERROR(logger_, "PnP solver failed to solve PnP");
-        yaw = 0;
+        return false;
     }
-
-    return yaw;
 }
 
 } // namespace helios_cv
