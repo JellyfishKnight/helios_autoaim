@@ -45,7 +45,6 @@ public:
   float calculateDistanceToCenter(const cv::Point2f & image_point);
 
   void update_params(const PnPParams& pnp_params);
-
 private:
   cv::Mat camera_matrix_;
   cv::Mat dist_coeffs_;

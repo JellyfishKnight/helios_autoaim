@@ -1,6 +1,7 @@
 // Copyright 2022 Chen Jun
 
 #include "PnPSolver.hpp"
+#include "Armor.hpp"
 
 #include <opencv2/calib3d.hpp>
 #include <vector>
