@@ -4,10 +4,10 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/types.hpp>
 #include <rclcpp/logger.hpp>
-#include <tf2_ros/buffer.h>
 #include <angles/angles.h>
 #include <vector>
-
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <geometry_msgs/msg/point.hpp>
 #include "Armor.hpp"
 #include "PnPSolver.hpp"
 
@@ -26,19 +26,24 @@ public:
 
     ~ProjectYaw();
 
-    void caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat &t_vec, cv::Mat& odom2cam);
+    void caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec, geometry_msgs::msg::TransformStamped ts);
+
+    void get_transform_info(geometry_msgs::msg::TransformStamped ts);
+
+    void draw_projection_points(cv::Mat& image);
 private:
     double diff_function(double yaw);
 
     double phi_optimization(double left, double right, double eps);
-    
+
+    void get_rotation_matrix(double yaw, cv::Mat& rotation_mat);
+
+    std::vector<cv::Point2f> projected_points_;
     cv::Mat camera_matrix_;
     cv::Mat dist_coeffs_;
-    cv::Mat odom2cam_;
-
-    std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
-
+    cv::Mat odom2cam_r_;
     std::vector<cv::Point2f> image_points_;
+    cv::Mat tvec_;
     std::vector<cv::Point3f> object_points_;
 
     std::vector<cv::Point3f> small_armor_points_;
