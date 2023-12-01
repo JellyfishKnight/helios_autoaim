@@ -45,16 +45,16 @@ public:
   float calculateDistanceToCenter(const cv::Point2f & image_point);
 
   void update_params(const PnPParams& pnp_params);
-private:
-  cv::Mat camera_matrix_;
-  cv::Mat dist_coeffs_;
-  
-  PnPParams pnp_solver_params_;
 
   // Four vertices of armor in 3d
   std::vector<cv::Point3f> small_armor_points_;
   std::vector<cv::Point3f> large_armor_points_;
   std::vector<cv::Point3f> energy_armor_points_;
+private:
+  cv::Mat camera_matrix_;
+  cv::Mat dist_coeffs_;
+  
+  PnPParams pnp_solver_params_;
 };
 } // namespace helios_cv
 
