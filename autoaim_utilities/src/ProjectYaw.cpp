@@ -159,11 +159,13 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     } else if (armor.type == ArmorType::ENERGY) {
         object_points_ = energy_armor_points_;
     }
-    // // Get yaw in about 0 to 360 degree
-    yaw = phi_optimization(0, 2 * M_PI, 1e-2);
+    // // // Get yaw in about 0 to 360 degree
+    // yaw = phi_optimization(0, 2 * M_PI, 1e-2);
+    diff_function(0);
+    yaw = 0;
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
-    r_mat = r_mat * odom2cam_r_;
+    r_mat = odom2cam_r_ * r_mat;
 }
 
 } // namespace helios_cv
