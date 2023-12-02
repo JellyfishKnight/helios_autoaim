@@ -1,6 +1,7 @@
 #include "ProjectYaw.hpp"
 #include "Armor.hpp"
 #include "PnPSolver.hpp"
+#include <ceres/jet.h>
 #include <cmath>
 #include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <geometry_msgs/msg/detail/point_stamped__struct.hpp>
@@ -75,45 +76,58 @@ double ProjectYaw::diff_function(double yaw) {
         diff += sqrt(pow(projected_points_[i].x - image_points_[i].x, 2) + pow(projected_points_[i].y - image_points_[i].y, 2));
     }
     diff /= 4;
-    return -diff;
+    return diff;
 }
 
 void ProjectYaw::draw_projection_points(cv::Mat& image) {
+    if (projected_points_.empty()) {
+        return;
+    }
     cv::line(image, projected_points_[0], projected_points_[2], cv::Scalar(255, 0, 0), 2);
     cv::line(image, projected_points_[1], projected_points_[3], cv::Scalar(255, 0, 0), 2);
+    projected_points_.clear();
 }
 
 double ProjectYaw::phi_optimization(double left, double right, double eps) {
-    const double phi = (1 + std::sqrt(5)) / 2; // φ 的值
-    double x1 = right - (right - left) / phi;
-    double x2 = left + (right - left) / phi;
-    double f1 = diff_function(x1);
-    double f2 = diff_function(x2);
-    int iterate_cnt = 0;
-    while (std::fabs(right - left) > eps) {
-        iterate_cnt++;
-        if (f1 < f2) {
-            right = x2;
-            x2 = x1;
-            f2 = f1;
-            x1 = right - (right - left) / phi;
-            f1 = diff_function(x1);
+    // Make fibonacci sequence
+    std::vector<double> fn(2);
+    std::vector<double> fib_seq;
+    fn[0] = 1, fn[1] = 1;
+    double f_lambda = 0, f_mu = 0;
+    int fib_cnt;
+    for (fib_cnt = 2; fn[fib_cnt - 1] < 1.0 / eps; fib_cnt++) {
+        fn.push_back(fn[fib_cnt - 2] + fn[fib_cnt - 1]);
+    }
+    fib_cnt--;
+    double lambda = left + (fn[fib_cnt - 2] / fn[fib_cnt]) * (right - left);
+    double mu = left + (fn[fib_cnt - 1] / fn[fib_cnt]) * (right - left);
+    f_lambda = diff_function(lambda);
+    f_mu = diff_function(mu);
+    for (int i = 0; i < fib_cnt - 2; i++) {
+        if (f_lambda < f_mu) {
+            right = mu;
+            mu = lambda;
+            f_mu = f_lambda;
+            lambda = left + (fn[fib_cnt - i - 3] / fn[fib_cnt - i - 1]) * (right - left);
+            f_lambda = diff_function(lambda);
         } else {
-            left = x1;
-            x1 = x2;
-            f1 = f2;
-            x2 = left + (right - left) / phi;
-            f2 = diff_function(x2);
-        }
-        if (iterate_cnt > 20) {
-            RCLCPP_ERROR(logger_, "Phi optimization failed to converge");
-            return (left + right) / 2;
+            left = lambda;
+            lambda = mu;
+            f_lambda = f_mu;
+            mu = left + (fn[fib_cnt - i - 2] / fn[fib_cnt - i - 1]) * (right - left);
+            f_mu = diff_function(mu);
         }
     }
-    return (left + right) / 2;
+    f_mu = diff_function(mu);
+    if (f_lambda < f_mu) {
+        right = mu;
+    } else {
+        left = lambda;
+    }
+    return 0.5 * (left + right);
 }
 
-void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) {
+void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) const {
     cv::Mat R_x = (cv::Mat_<double>(3,3) <<
                1,       0,              0,
                0,       std::cos(roll_),-std::sin(roll_),
@@ -133,7 +147,8 @@ void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) {
     rotation_mat = R_z * R_y * R_x;
 }
 
-void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec, geometry_msgs::msg::TransformStamped ts) {
+void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec, 
+                        geometry_msgs::msg::TransformStamped ts) {
     double yaw;
     tvec_ = tvec;
     get_transform_info(ts);
@@ -159,10 +174,14 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     } else if (armor.type == ArmorType::ENERGY) {
         object_points_ = energy_armor_points_;
     }
-    // // // Get yaw in about 0 to 360 degree
-    // yaw = phi_optimization(0, 2 * M_PI, 1e-2);
-    diff_function(0);
-    yaw = 0;
+    // Get yaw in about 0 to 360 degree
+    yaw = phi_optimization(-M_PI, M_PI, 1e-2);
+    RCLCPP_INFO(logger_, "yaw : %f", yaw);
+    for (double i = -M_PI; i < M_PI; i += 0.1) {
+        RCLCPP_WARN(logger_, "i %f diff %f", i, diff_function(i));
+    }
+    // yaw = 0;
+    // diff_function(yaw);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;

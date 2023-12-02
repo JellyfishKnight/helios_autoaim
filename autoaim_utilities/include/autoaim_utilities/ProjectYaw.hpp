@@ -26,7 +26,8 @@ public:
 
     ~ProjectYaw();
 
-    void caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec, geometry_msgs::msg::TransformStamped ts);
+    void caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec, 
+                            geometry_msgs::msg::TransformStamped ts);
 
     void get_transform_info(geometry_msgs::msg::TransformStamped ts);
 
@@ -36,7 +37,7 @@ private:
 
     double phi_optimization(double left, double right, double eps);
 
-    void get_rotation_matrix(double yaw, cv::Mat& rotation_mat);
+    void get_rotation_matrix(double yaw, cv::Mat& rotation_mat) const;
 
     std::vector<cv::Point2f> projected_points_;
     cv::Mat camera_matrix_;
