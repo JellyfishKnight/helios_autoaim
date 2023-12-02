@@ -81,7 +81,12 @@ double ProjectYaw::diff_function(double yaw) {
 
 void ProjectYaw::draw_projection_points(cv::Mat& image) {
     if (projected_points_.empty()) {
+        RCLCPP_WARN(logger_, "empty projection");
         return;
+    }
+    for (int i = 0; i < 4; i++) {
+        cv::circle(image, projected_points_[i], i + 1, cv::Scalar(0, 0, 255), -1);
+        // cv::circle(image, image_points_[i], i + 1, cv::Scalar(255, 0, 0), 2);
     }
     cv::line(image, projected_points_[0], projected_points_[2], cv::Scalar(255, 0, 0), 2);
     cv::line(image, projected_points_[1], projected_points_[3], cv::Scalar(255, 0, 0), 2);
@@ -154,6 +159,7 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     get_transform_info(ts);
     // Fill in image points
     cv::Point2f point;
+    image_points_.clear();
     point.x = armor.left_light.bottom.x;
     point.y = armor.left_light.bottom.y;
     image_points_.emplace_back(point);
@@ -176,12 +182,6 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     }
     // Get yaw in about 0 to 360 degree
     yaw = phi_optimization(-M_PI, M_PI, 1e-2);
-    RCLCPP_INFO(logger_, "yaw : %f", yaw);
-    for (double i = -M_PI; i < M_PI; i += 0.1) {
-        RCLCPP_WARN(logger_, "i %f diff %f", i, diff_function(i));
-    }
-    // yaw = 0;
-    // diff_function(yaw);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;
