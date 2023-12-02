@@ -5,6 +5,7 @@
 #include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <geometry_msgs/msg/detail/point_stamped__struct.hpp>
 #include <geometry_msgs/msg/detail/transform_stamped__struct.hpp>
+#include <math.h>
 #include <memory>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core/mat.hpp>
@@ -62,12 +63,7 @@ double ProjectYaw::diff_function(double yaw) {
     // Caculate rotation matrix
     cv::Mat rotation_matrix;
     get_rotation_matrix(yaw, rotation_matrix);
-    rotation_matrix = rotation_matrix * odom2cam_r_;
-    // rotation matrix to quaternion
-    RCLCPP_WARN(logger_, "\n 11 %f 12 %f 13 %f \n 21 %f 22 %f 23 %f \n 31 %f 32 %f 33 %f", 
-    rotation_matrix.at<double>(0, 0), rotation_matrix.at<double>(0, 1), rotation_matrix.at<double>(0, 2),
-    rotation_matrix.at<double>(1, 0), rotation_matrix.at<double>(1, 1), rotation_matrix.at<double>(1, 2),
-    rotation_matrix.at<double>(2, 0), rotation_matrix.at<double>(2, 1), rotation_matrix.at<double>(2, 2));
+    rotation_matrix = odom2cam_r_ * rotation_matrix;
     // Turn rotation matrix into rotation vector
     cv::Mat rvec;
     cv::Rodrigues(rotation_matrix, rvec);
@@ -164,9 +160,7 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
         object_points_ = energy_armor_points_;
     }
     // // Get yaw in about 0 to 360 degree
-    // yaw = phi_optimization(0, 2 * M_PI, 1e-2);
-    diff_function(0);
-    yaw = 0;
+    yaw = phi_optimization(0, 2 * M_PI, 1e-2);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = r_mat * odom2cam_r_;
