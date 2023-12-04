@@ -33,7 +33,7 @@ public:
 
     void draw_projection_points(cv::Mat& image);
 private:
-    double diff_function(double yaw);
+    double diff_function(double yaw); 
 
     double phi_optimization(double left, double right, double eps);
 

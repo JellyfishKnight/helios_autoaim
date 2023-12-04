@@ -1,7 +1,6 @@
 #include "ProjectYaw.hpp"
 #include "Armor.hpp"
 #include "PnPSolver.hpp"
-#include <ceres/jet.h>
 #include <cmath>
 #include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <geometry_msgs/msg/detail/point_stamped__struct.hpp>
@@ -76,6 +75,13 @@ double ProjectYaw::diff_function(double yaw) {
         diff += sqrt(pow(projected_points_[i].x - image_points_[i].x, 2) + pow(projected_points_[i].y - image_points_[i].y, 2));
     }
     diff /= 4;
+    // caculate covered area size
+    cv::RotatedRect armor_rect(image_points_[0], image_points_[2], image_points_[1]);
+    cv::RotatedRect projected_rect(projected_points_[0], projected_points_[2], projected_points_[1]);
+    std::vector<cv::Point2f> contour;
+    cv::rotatedRectangleIntersection(armor_rect, projected_rect, contour);
+    double area = cv::contourArea(contour);
+    diff -= area / 1000.0;
     return diff;
 }
 
@@ -158,7 +164,7 @@ void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) const {
 
 void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec, 
                         geometry_msgs::msg::TransformStamped ts) {
-    double yaw;
+    double yaw = -M_PI;
     tvec_ = tvec;
     get_transform_info(ts);
     // Fill in image points
@@ -184,7 +190,7 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     } else if (armor.type == ArmorType::ENERGY) {
         object_points_ = energy_armor_points_;
     }
-    // Get yaw in about 0 to 360 degree
+    // // Get yaw in about 0 to 360 degree
     yaw = phi_optimization(-M_PI, M_PI, 1e-2);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
