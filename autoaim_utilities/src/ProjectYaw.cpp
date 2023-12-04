@@ -1,6 +1,7 @@
 #include "ProjectYaw.hpp"
 #include "Armor.hpp"
 #include "PnPSolver.hpp"
+#include <angles/angles.h>
 #include <cmath>
 #include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <geometry_msgs/msg/detail/point_stamped__struct.hpp>
@@ -75,13 +76,15 @@ double ProjectYaw::diff_function(double yaw) {
         diff += sqrt(pow(projected_points_[i].x - image_points_[i].x, 2) + pow(projected_points_[i].y - image_points_[i].y, 2));
     }
     diff /= 4;
-    // caculate covered area size
-    cv::RotatedRect armor_rect(image_points_[0], image_points_[2], image_points_[1]);
-    cv::RotatedRect projected_rect(projected_points_[0], projected_points_[2], projected_points_[1]);
-    std::vector<cv::Point2f> contour;
-    cv::rotatedRectangleIntersection(armor_rect, projected_rect, contour);
-    double area = cv::contourArea(contour);
-    diff -= area / 1000.0;
+    // Use angle to prevent another peak
+    double projected_armor_angle;
+    cv::Point2f left_light_center = (projected_points_[0] + projected_points_[1]) / 2;
+    cv::Point2f right_light_center = (projected_points_[2] + projected_points_[3]) / 2;
+    cv::Point2f diff_of_center = left_light_center - right_light_center;
+    projected_armor_angle = std::atan(diff_of_center.y / diff_of_center.x) / CV_PI * 180;
+    if (projected_armor_angle * armor_angle_ < 0) {
+        diff = 1e10;
+    }
     return diff;
 }
 
@@ -182,6 +185,7 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     point.x = armor.right_light.bottom.x;
     point.y = armor.right_light.bottom.y;
     image_points_.emplace_back(point);
+    armor_angle_ = armor.angle;
     // Fill in object points
     if (armor.type == ArmorType::SMALL) {
         object_points_ = small_armor_points_;
@@ -189,6 +193,12 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
         object_points_ = large_armor_points_;
     } else if (armor.type == ArmorType::ENERGY) {
         object_points_ = energy_armor_points_;
+    }
+    // Choose pitch value
+    if (armor.number == "outpost") {
+        pitch_ = angles::from_degrees(-15.0);
+    } else {
+        pitch_ = angles::from_degrees(15.0);
     }
     // // Get yaw in about 0 to 360 degree
     yaw = phi_optimization(-M_PI, M_PI, 1e-2);

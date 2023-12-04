@@ -52,6 +52,7 @@ private:
     std::vector<cv::Point3f> energy_armor_points_;
     // The pitch and roll of armor are fixed for target
     double roll_ = 0, pitch_ = angles::from_degrees(15);
+    double armor_angle_;
 
     rclcpp::Logger logger_ = rclcpp::get_logger("ProjectYaw");
 };
