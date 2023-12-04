@@ -88,8 +88,12 @@ void ProjectYaw::draw_projection_points(cv::Mat& image) {
         cv::circle(image, projected_points_[i], i + 1, cv::Scalar(0, 0, 255), -1);
         // cv::circle(image, image_points_[i], i + 1, cv::Scalar(255, 0, 0), 2);
     }
-    cv::line(image, projected_points_[0], projected_points_[2], cv::Scalar(255, 0, 0), 2);
-    cv::line(image, projected_points_[1], projected_points_[3], cv::Scalar(255, 0, 0), 2);
+    cv::line(image, projected_points_[0], projected_points_[2], cv::Scalar(255, 255, 0), 2);
+    cv::line(image, projected_points_[1], projected_points_[3], cv::Scalar(255, 255, 0), 2);
+    cv::line(image, projected_points_[0], projected_points_[1], cv::Scalar(255, 255, 0), 2);
+    cv::line(image, projected_points_[1], projected_points_[2], cv::Scalar(255, 255, 0), 2);
+    cv::line(image, projected_points_[2], projected_points_[3], cv::Scalar(255, 255, 0), 2);
+    cv::line(image, projected_points_[3], projected_points_[0], cv::Scalar(255, 255, 0), 2);
     projected_points_.clear();
 }
 
