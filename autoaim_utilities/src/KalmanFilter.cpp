@@ -2,83 +2,55 @@
 // Submodule of HeliosRobotSystem
 // for more see document: https://swjtuhelios.feishu.cn/docx/MfCsdfRxkoYk3oxWaazcfUpTnih?from=from_copylink
 #include "KalmanFilter.hpp"
+#include <Eigen/src/Core/Matrix.h>
+#include <functional>
 
 namespace helios_cv {
 
-EigenKalmanFilter::EigenKalmanFilter(int state_param, int measure_param, int control_param){
-    Init(state_param, measure_param, control_param);
+EigenKalmanFilter::EigenKalmanFilter(
+    std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& TransMat,
+    std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& MeasureMat,
+    std::function<Eigen::MatrixXd()>& update_Q,
+    std::function<Eigen::MatrixXd(const Eigen::MatrixXd&)>& update_R,
+    const Eigen::MatrixXd& P
+) : trans_mat_(TransMat), measure_mat_(MeasureMat), update_Q_(update_Q), 
+    update_R_(update_R), P_post_(P) {
+    state_pre_ = Eigen::VectorXd::Zero(P.rows());
+    state_post_ = Eigen::VectorXd::Zero(P.rows());
 }
 
-
-void EigenKalmanFilter::Init(int state_param, int measure_param, int control_param){
-    state_pre_.setZero(state_param, 1);
-    state_post_.setZero(state_param, 1);
-    trans_mat_.setIdentity(state_param, state_param);
-
-    process_noise_.setIdentity(state_param, state_param);
-    //process_noise_ = 0.01*process_noise_;
-    measure_mat_.setZero(measure_param, state_param);
-    measure_noise_.setIdentity(measure_param, measure_param);
-    
-
-    error_pre_.setZero(state_param, state_param);
-    error_post_.setZero(state_param, state_param);
-    gain_.setZero(state_param, measure_param);
-
-    if(control_param>0){
-        control_mat_.setIdentity(state_param, control_param);
-    }
-
-    temp1.setZero(state_param, state_param);
-    temp2.setZero(measure_param, state_param);
-    temp3.setZero(measure_param, measure_param);
-    temp4.setZero(measure_param, 1);
-}
-
-Eigen::MatrixXf EigenKalmanFilter::predict(const Eigen::MatrixXf &control){
-    state_pre_ = trans_mat_ * state_post_;
-
-    if(control.rows() && control.cols()){
-        state_pre_ += control_mat_*control;
-    }
-    temp1 = trans_mat_*error_post_;
-    error_pre_ = temp1 * trans_mat_.transpose() + process_noise_;
-
+Eigen::MatrixXd EigenKalmanFilter::predict() {
+    //X_k_bar(先验估计) = A(状态转移矩阵) * X_k-1(后验估计)
+    F_ = trans_mat_(state_post_);
+    state_pre_ = F_ * state_post_;
+    // state_pre_ = trans_mat_ * state_post_;
+    Q_ = update_Q_();
+    //p_k_bar(误差协方差先验矩阵) = A(状态转移矩阵) * p_k-1(误差协方差后验矩阵) * A_T(状态转移矩阵转置) + Q(过程噪音协方差矩阵)
+    P_pre_ = F_ * P_post_ * F_.transpose() + Q_;
+    state_post_ = state_pre_;
+    P_post_ = P_pre_;
     return state_pre_;
 }
 
 
-Eigen::MatrixXf EigenKalmanFilter::correct(const Eigen::VectorXf &measurement){
-    temp2 = error_pre_ * measure_mat_.transpose();
-    temp3 = measure_mat_ * temp2 + measure_noise_;
-
-    gain_ = temp2 * temp3.inverse();//K
-
-    temp4 = measurement - measure_mat_*state_pre_;
-    state_post_ = state_pre_ + gain_ * temp4;
-    error_post_ = error_pre_ - gain_ * measure_mat_ * error_pre_;
+Eigen::MatrixXd EigenKalmanFilter::correct(const Eigen::VectorXd& measurement){
+    //计算高斯增益
+    //               P_k_bar(误差协方差先验矩阵) * H_T(测量转移矩阵的转置)
+    //K_k(高斯增益) = ------------------------------------------------------------------------
+    //               H(测量转移矩阵) * P_k_bar(误差协方差先验矩阵) * H_T(测量转移矩阵的转置) + R(测量噪音协方差矩阵)
+    R_ = update_R_(measurement);
+    H_ = measure_mat_(state_pre_);
+    Eigen::MatrixXd S = H_ * P_pre_ * H_.transpose() + R_;
+    gain_ = P_pre_ * H_.transpose() * (H_ * P_pre_ * H_.transpose() + R_).inverse();//K
+    //X_k(后验估计) = X_k_bar(先验估计) + K_k(高斯增益) * (Z_k(测量量) - H(测量转移矩阵) * X_k_bar(先验估计矩阵))
+    state_post_ = state_pre_ + gain_ * (measurement - H_ * state_pre_);
+    //P_k(误差协方差后验估计) = P_k_bar(误差协方差先验估计) - K_k(卡尔曼增益) * H(测量转移矩阵) * P_k_bar(误差协方差先验估计)
+    P_post_ = P_pre_ - gain_ * H_ * P_pre_;
     return state_post_;
 }
 
-void EigenKalmanFilter::Update(Eigen::VectorXf & measurement){
-    predict();
-    correct(measurement);
-}
-
-void EigenKalmanFilter::initKalman(){
-    Init(3, 2, 1);
-    measure_mat_.setIdentity();
-    process_noise_.setIdentity();
-
-    process_noise_<<1, 0, 0,
-                    0, 1, 0,
-                    0, 0, 1;
-
-    measure_noise_.setIdentity();
-    measure_noise_<<20, 0,
-                    0, 20;
-    error_post_.setIdentity();
-    state_post_<<0, 0, 0;
+void EigenKalmanFilter::set_state(const Eigen::VectorXd& state) {
+    state_post_ = state;
 }
 
 } // namespace helios_cv
