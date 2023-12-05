@@ -76,15 +76,15 @@ double ProjectYaw::diff_function(double yaw) {
         diff += sqrt(pow(projected_points_[i].x - image_points_[i].x, 2) + pow(projected_points_[i].y - image_points_[i].y, 2));
     }
     diff /= 4;
-    // Use angle to prevent another peak
-    double projected_armor_angle;
-    cv::Point2f left_light_center = (projected_points_[0] + projected_points_[1]) / 2;
-    cv::Point2f right_light_center = (projected_points_[2] + projected_points_[3]) / 2;
-    cv::Point2f diff_of_center = left_light_center - right_light_center;
-    projected_armor_angle = std::atan(diff_of_center.y / diff_of_center.x) / CV_PI * 180;
-    if (projected_armor_angle * armor_angle_ < 0) {
-        diff = 1e10;
-    }
+    // // Use angle to prevent another peak
+    // double projected_armor_angle;
+    // cv::Point2f left_light_center = (projected_points_[0] + projected_points_[1]) / 2;
+    // cv::Point2f right_light_center = (projected_points_[2] + projected_points_[3]) / 2;
+    // cv::Point2f diff_of_center = left_light_center - right_light_center;
+    // projected_armor_angle = std::atan(diff_of_center.y / diff_of_center.x) / CV_PI * 180;
+    // if (projected_armor_angle * armor_angle_ < 0) {
+    //     diff = 1e10;
+    // }
     return diff;
 }
 
@@ -200,8 +200,17 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     } else {
         pitch_ = angles::from_degrees(15.0);
     }
-    // // Get yaw in about 0 to 360 degree
-    yaw = phi_optimization(-M_PI, M_PI, 1e-2);
+    // // // Get yaw in about 0 to 360 degree
+    // yaw = phi_optimization(-M_PI, M_PI, 1e-2);
+    ///TODO: NEED IMPROVE : consider more smart way to get the min point of function
+    double max_diff = 1e10;
+    for (double i = -M_PI; i < M_PI; i += 0.1) {
+        double temp_diff = diff_function(i);
+        if (temp_diff < max_diff) {
+            max_diff = temp_diff;
+            yaw = i;
+        }
+    }
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;
