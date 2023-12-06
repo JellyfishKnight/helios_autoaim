@@ -52,9 +52,11 @@ ProjectYaw::ProjectYaw(const std::array<double, 9> & camera_matrix, const std::v
 
 ProjectYaw::~ProjectYaw() {}
 
-void ProjectYaw::get_transform_info(geometry_msgs::msg::TransformStamped ts) {
+cv::Mat ProjectYaw::get_transform_info(geometry_msgs::msg::TransformStamped ts) {
+    // turn quaternion into rotation matrix 
+    // for more see paper: https://danceswithcode.net/engineeringnotes/quaternions/quaternions.html
     double x = ts.transform.rotation.x,  y = ts.transform.rotation.y,  z = ts.transform.rotation.z, w = ts.transform.rotation.w;
-    odom2cam_r_ = (cv::Mat_<double>(3, 3) << 
+    return (cv::Mat_<double>(3, 3) << 
             1 - 2 * (z * z + y * y), 2 * (y * x - z * w), 2 * (x * z + y * w),
             2 * (y * x + z * w), 1 - 2 * (x * x + z * z), 2 * (z * y - x * w),
             2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (y * y + x * x));
@@ -146,10 +148,13 @@ double ProjectYaw::phi_optimization(double left, double right, double eps) {
 }
 
 void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) const {
+    // caculate rotation matrix
+    // for more see paper: https://danceswithcode.net/engineeringnotes/rotations_in_3d/rotations_in_3d_part1.html
+    // Calculate rotation about x axis
     cv::Mat R_x = (cv::Mat_<double>(3,3) <<
-               1,       0,              0,
-               0,       std::cos(roll_),-std::sin(roll_),
-               0,       std::sin(roll_),std::cos(roll_));
+               1,       0,                     0,
+               0,       std::cos(armor_angle_),-std::sin(armor_angle_),
+               0,       std::sin(armor_angle_),std::cos(armor_angle_));
      
     // Calculate rotation about y axis
     cv::Mat R_y = (cv::Mat_<double>(3,3) <<
@@ -165,11 +170,9 @@ void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) const {
     rotation_mat = R_z * R_y * R_x;
 }
 
-void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec, 
-                        geometry_msgs::msg::TransformStamped ts) {
+void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec) {
     double yaw = -M_PI;
     tvec_ = tvec;
-    get_transform_info(ts);
     // Fill in image points
     cv::Point2f point;
     image_points_.clear();
@@ -200,17 +203,20 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     } else {
         pitch_ = angles::from_degrees(15.0);
     }
+    // Take the yaw from pnp as a initial value
+    r_mat = cam2odom_r_ * r_mat;
+    double armor_yaw_in_cam = atan2(r_mat.at<double>(1, 0), r_mat.at<double>(0, 0));
     // // // Get yaw in about 0 to 360 degree
-    // yaw = phi_optimization(-M_PI, M_PI, 1e-2);
+    yaw = phi_optimization(armor_yaw_in_cam - M_PI / 6, armor_yaw_in_cam + M_PI / 6, 1e-2);
     ///TODO: NEED IMPROVE : consider more smart way to get the min point of function
-    double max_diff = 1e10;
-    for (double i = -M_PI; i < M_PI; i += 0.1) {
-        double temp_diff = diff_function(i);
-        if (temp_diff < max_diff) {
-            max_diff = temp_diff;
-            yaw = i;
-        }
-    }
+    // double max_diff = 1e10;
+    // for (double i = -M_PI; i < M_PI; i += 0.1) {
+    //     double temp_diff = diff_function(i);
+    //     if (temp_diff < max_diff) {
+    //         max_diff = temp_diff;
+    //         yaw = i;
+    //     }
+    // }
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;

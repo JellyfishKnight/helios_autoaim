@@ -26,12 +26,14 @@ public:
 
     ~ProjectYaw();
 
-    void caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec, 
-                            geometry_msgs::msg::TransformStamped ts);
+    void caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec);
 
-    void get_transform_info(geometry_msgs::msg::TransformStamped ts);
+    cv::Mat get_transform_info(geometry_msgs::msg::TransformStamped ts);
 
     void draw_projection_points(cv::Mat& image);
+
+    cv::Mat odom2cam_r_;
+    cv::Mat cam2odom_r_;
 private:
     double diff_function(double yaw); 
 
@@ -42,7 +44,6 @@ private:
     std::vector<cv::Point2f> projected_points_;
     cv::Mat camera_matrix_;
     cv::Mat dist_coeffs_;
-    cv::Mat odom2cam_r_;
     std::vector<cv::Point2f> image_points_;
     cv::Mat tvec_;
     std::vector<cv::Point3f> object_points_;
