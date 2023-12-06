@@ -18,6 +18,9 @@ const int BLUE = 1;
 
 enum class ArmorType { SMALL, LARGE, ENERGY, INVALID };
 
+typedef enum {LOST, TEMP_LOST, TRACKING, DETECTING} TrakerState;
+typedef enum {BALANCE, OUTPOST, NORMAL} TargetType;
+
 const std::string ARMOR_TYPE_STR[3] = {"SMALL", "LARGE", "INVALID"};
 
 struct Light : public cv::RotatedRect
