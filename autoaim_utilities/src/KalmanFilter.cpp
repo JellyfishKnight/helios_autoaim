@@ -8,10 +8,10 @@
 namespace helios_cv {
 
 EigenKalmanFilter::EigenKalmanFilter(
-    std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& TransMat,
-    std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& MeasureMat,
-    std::function<Eigen::MatrixXd()>& update_Q,
-    std::function<Eigen::MatrixXd(const Eigen::MatrixXd&)>& update_R,
+    const std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& TransMat,
+    const std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& MeasureMat,
+    const std::function<Eigen::MatrixXd()>& update_Q,
+    const std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& update_R,
     const Eigen::MatrixXd& P
 ) : trans_mat_(TransMat), measure_mat_(MeasureMat), update_Q_(update_Q), 
     update_R_(update_R), P_post_(P) {

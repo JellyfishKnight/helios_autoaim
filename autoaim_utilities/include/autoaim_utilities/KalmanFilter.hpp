@@ -12,11 +12,13 @@ namespace helios_cv {
 
 class EigenKalmanFilter{
 public:
+    EigenKalmanFilter() = default;
+
     EigenKalmanFilter(    
-        std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& TransMat,
-        std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& MeasureMat,
-        std::function<Eigen::MatrixXd()>& update_Q,
-        std::function<Eigen::MatrixXd(const Eigen::MatrixXd&)>& update_R,
+        const std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& TransMat,
+        const std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& MeasureMat,
+        const std::function<Eigen::MatrixXd()>& update_Q,
+        const std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& update_R,
         const Eigen::MatrixXd& P);
 
     void set_state(const Eigen::VectorXd& state);
@@ -27,8 +29,8 @@ public:
 
     std::function<Eigen::MatrixXd()> update_Q_;
     std::function<Eigen::MatrixXd(const Eigen::MatrixXd&)> update_R_;
-    std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& trans_mat_;
-    std::function<Eigen::MatrixXd(const Eigen::VectorXd&)>& measure_mat_;
+    std::function<Eigen::MatrixXd(const Eigen::VectorXd&)> trans_mat_;
+    std::function<Eigen::MatrixXd(const Eigen::VectorXd&)> measure_mat_;
 
     Eigen::MatrixXd F_;//状态转移矩阵
     Eigen::MatrixXd H_;//测量转移矩阵
