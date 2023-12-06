@@ -152,9 +152,9 @@ void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) const {
     // for more see paper: https://danceswithcode.net/engineeringnotes/rotations_in_3d/rotations_in_3d_part1.html
     // Calculate rotation about x axis
     cv::Mat R_x = (cv::Mat_<double>(3,3) <<
-               1,       0,                     0,
-               0,       std::cos(armor_angle_),-std::sin(armor_angle_),
-               0,       std::sin(armor_angle_),std::cos(armor_angle_));
+               1,       0,               0,
+               0,       std::cos(roll_), -std::sin(roll_),
+               0,       std::sin(roll_), std::cos(roll_));
      
     // Calculate rotation about y axis
     cv::Mat R_y = (cv::Mat_<double>(3,3) <<
@@ -203,6 +203,7 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     } else {
         pitch_ = angles::from_degrees(15.0);
     }
+    roll_ = angles::from_degrees(armor_angle_);
     // Take the yaw from pnp as a initial value
     r_mat = cam2odom_r_ * r_mat;
     double armor_yaw_in_cam = atan2(r_mat.at<double>(1, 0), r_mat.at<double>(0, 0));
