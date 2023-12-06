@@ -90,7 +90,7 @@ double ProjectYaw::diff_function(double yaw) {
 
 void ProjectYaw::draw_projection_points(cv::Mat& image) {
     if (projected_points_.empty()) {
-        RCLCPP_WARN(logger_, "empty projection");
+        RCLCPP_DEBUG(logger_, "empty projection");
         return;
     }
     for (int i = 0; i < 4; i++) {
