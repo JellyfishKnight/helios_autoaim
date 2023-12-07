@@ -196,21 +196,10 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     }
     // Take the yaw from pnp as a initial value
     r_mat = cam2odom_r_ * r_mat;
+    /// THINKING: Can we consider the roll of armor ?
     double armor_yaw_from_pnp = std::atan2(r_mat.at<double>(1, 0), r_mat.at<double>(0, 0));
-    roll_ = std::atan2(r_mat.at<double>(2, 1), r_mat.at<double>(2, 2));
-    // RCLCPP_WARN(logger_, "roll %f", roll_);
-    // // // Get yaw in about 0 to 360 degree
+    // Get yaw in about 0 to 360 degree
     yaw = phi_optimization(armor_yaw_from_pnp - M_PI / 6, armor_yaw_from_pnp + M_PI / 6, 1e-2);
-    // double max_diff = 1e10;
-    // for (double i = -M_PI; i < M_PI; i += 0.1) {
-    //     double temp_diff = diff_function(i);
-    //     if (temp_diff < max_diff) {
-    //         max_diff = temp_diff;
-    //         yaw = i;
-    //     }
-    //     RCLCPP_WARN(logger_, "yaw %f, diff %f", i, temp_diff);
-    // }
-    // diff_function(yaw);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;
