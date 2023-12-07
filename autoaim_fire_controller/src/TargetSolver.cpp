@@ -42,14 +42,13 @@ Eigen::Vector3d TargetSolver::get_best_armor(autoaim_interfaces::msg::Target::Sh
     } else if (a_n_ == OUTPOST_ARMOR_NUM) {
         for (int i = 0; i < 3; i++) {
             float tmp_yaw = yaw_ + i * 2.0 * M_PI / 3.0;
-            float r =  (r1_ + r2_) / 2;   //理论上r1=r2 这里取个平均值
+            // The radius of outpost is fixed
+            float r =  0.26;
             armors_position_[i](0) = car_center_xyz_(0) - r * cos(tmp_yaw);
             armors_position_[i](1) = car_center_xyz_(1) - r * sin(tmp_yaw);
             armors_position_[i](2) = car_center_xyz_(2);
             armors_yaw_[i] = tmp_yaw;
         }
-        ///TODO: 英雄 选择最优装甲板 选板逻辑
-
     } else if (a_n_ == SIMPLE_ARMOR_NUM) {
         for (int i = 0; i < 4; i++) {
             float tmp_yaw = yaw_ + i * M_PI / 2.0;
@@ -60,15 +59,15 @@ Eigen::Vector3d TargetSolver::get_best_armor(autoaim_interfaces::msg::Target::Sh
             armors_yaw_[i] = tmp_yaw;
             is_current_pair_ = !is_current_pair_;
         }
-        //计算枪管到目标装甲板yaw最小的那个装甲板
-        float yaw_diff_min = std::abs(yaw_ - armors_yaw_[0]);
-        for (int i = 1; i < 4; i++) {
-            float temp_yaw_diff = std::abs(yaw_ - armors_yaw_[i]);
-            if (temp_yaw_diff < yaw_diff_min)
-            {
-                yaw_diff_min = temp_yaw_diff;
-                best_armor_idx_ = i;
-            }
+    }
+    //计算枪管到目标装甲板yaw最小的那个装甲板
+    float yaw_diff_min = std::abs(yaw_ - armors_yaw_[0]);
+    for (int i = 1; i < 4; i++) {
+        float temp_yaw_diff = std::abs(yaw_ - armors_yaw_[i]);
+        if (temp_yaw_diff < yaw_diff_min)
+        {
+            yaw_diff_min = temp_yaw_diff;
+            best_armor_idx_ = i;
         }
     }
     ///TODO: if we need this?

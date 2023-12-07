@@ -36,17 +36,11 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
         params_.bullet_solver.air_coeff
     });
     // create publisher and subscription
-#ifdef UNDER_HELIOS_RS
     gimbal_pub_ = this->create_publisher<helios_control_interfaces::msg::GimbalCmd>("gimbal_cmd", 10);
     shoot_pub_ = this->create_publisher<helios_control_interfaces::msg::ShooterCmd>("shooter_cmd", 10);
     imu_sub_ = this->create_subscription<sensor_interfaces::msg::ImuEuler>(
             "imu_euler", 10, std::bind(&FireController::imu_euler_callback, this, std::placeholders::_1));
     // bullet_sub_ = this->create_subscription<referee_interfaces::msg::>(, , )
-#else 
-    serial_pub_ = this->create_publisher<rm_interfaces::msg::SendData>("serial_send", 10);
-    serial_sub_ = this->create_subscription<autoaim_interfaces::msg::ReceiveData>(
-        "serial_data", rclcpp::SensorDataQoS(), std::bind(&FireController::serial_callback, this, std::placeholders::_1));
-#endif
     // // 初始化tf2相关
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     // // Create the timer interface before call to waitForTransform,

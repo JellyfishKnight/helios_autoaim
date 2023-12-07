@@ -18,6 +18,9 @@ const int BLUE = 1;
 
 enum class ArmorType { SMALL, LARGE, ENERGY, INVALID };
 
+typedef enum {LOST, TEMP_LOST, TRACKING, DETECTING} TrakerState;
+typedef enum {BALANCE, OUTPOST, NORMAL} TargetType;
+
 const std::string ARMOR_TYPE_STR[3] = {"SMALL", "LARGE", "INVALID"};
 
 struct Light : public cv::RotatedRect
@@ -56,11 +59,15 @@ struct Armor
       left_light = l2, right_light = l1;
     }
     center = (left_light.center + right_light.center) / 2;
+    // Angle of light center connection
+    cv::Point2f diff = l1.center - l2.center;
+    angle = std::atan(diff.y / diff.x) / CV_PI * 180;
   }
 
   // Light pairs part
   Light left_light, right_light;
   cv::Point2f center;
+  double angle;
   ArmorType type;
 
   // Number part

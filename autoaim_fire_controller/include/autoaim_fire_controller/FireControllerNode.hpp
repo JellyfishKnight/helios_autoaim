@@ -14,15 +14,10 @@
 
 
 #include "autoaim_interfaces/msg/target.hpp"
-#ifdef UNDER_HELIOS_RS
 #include "autoaim_interfaces/msg/receive_data.hpp"
 #include "helios_control_interfaces/msg/shooter_cmd.hpp"
 #include "helios_control_interfaces/msg/gimbal_cmd.hpp"
 #include "sensor_interfaces/msg/imu_euler.hpp"
-#else
-#include "rm_interfaces/msg/receive_data.hpp"
-#include "rm_interfaces/msg/send_data.hpp"
-#endif
 
 #include "TargetSolver.hpp"
 #include "BulletSolver.hpp"
