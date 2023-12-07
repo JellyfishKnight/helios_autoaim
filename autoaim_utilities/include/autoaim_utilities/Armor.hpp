@@ -61,7 +61,7 @@ struct Armor
     center = (left_light.center + right_light.center) / 2;
     // Angle of light center connection
     cv::Point2f diff = l1.center - l2.center;
-    angle = std::abs(std::atan(diff.y / diff.x)) / CV_PI * 180;
+    angle = std::atan(diff.y / diff.x) / CV_PI * 180;
   }
 
   // Light pairs part

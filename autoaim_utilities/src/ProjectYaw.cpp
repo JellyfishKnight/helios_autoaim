@@ -78,15 +78,6 @@ double ProjectYaw::diff_function(double yaw) {
         diff += sqrt(pow(projected_points_[i].x - image_points_[i].x, 2) + pow(projected_points_[i].y - image_points_[i].y, 2));
     }
     diff /= 4;
-    // // Use angle to prevent another peak
-    // double projected_armor_angle;
-    // cv::Point2f left_light_center = (projected_points_[0] + projected_points_[1]) / 2;
-    // cv::Point2f right_light_center = (projected_points_[2] + projected_points_[3]) / 2;
-    // cv::Point2f diff_of_center = left_light_center - right_light_center;
-    // projected_armor_angle = std::atan(diff_of_center.y / diff_of_center.x) / CV_PI * 180;
-    // if (projected_armor_angle * armor_angle_ < 0) {
-    //     diff = 1e10;
-    // }
     return diff;
 }
 
@@ -203,13 +194,13 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     } else {
         pitch_ = angles::from_degrees(15.0);
     }
-    roll_ = angles::from_degrees(armor_angle_);
     // Take the yaw from pnp as a initial value
     r_mat = cam2odom_r_ * r_mat;
-    double armor_yaw_in_cam = atan2(r_mat.at<double>(1, 0), r_mat.at<double>(0, 0));
+    double armor_yaw_from_pnp = std::atan2(r_mat.at<double>(1, 0), r_mat.at<double>(0, 0));
+    roll_ = std::atan2(r_mat.at<double>(2, 1), r_mat.at<double>(2, 2));
+    // RCLCPP_WARN(logger_, "roll %f", roll_);
     // // // Get yaw in about 0 to 360 degree
-    yaw = phi_optimization(armor_yaw_in_cam - M_PI / 6, armor_yaw_in_cam + M_PI / 6, 1e-2);
-    ///TODO: NEED IMPROVE : consider more smart way to get the min point of function
+    yaw = phi_optimization(armor_yaw_from_pnp - M_PI / 6, armor_yaw_from_pnp + M_PI / 6, 1e-2);
     // double max_diff = 1e10;
     // for (double i = -M_PI; i < M_PI; i += 0.1) {
     //     double temp_diff = diff_function(i);
@@ -217,7 +208,9 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     //         max_diff = temp_diff;
     //         yaw = i;
     //     }
+    //     RCLCPP_WARN(logger_, "yaw %f, diff %f", i, temp_diff);
     // }
+    // diff_function(yaw);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;
