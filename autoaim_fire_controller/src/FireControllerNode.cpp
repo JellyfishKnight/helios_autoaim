@@ -9,6 +9,8 @@
  * ██   ██ ███████ ███████ ██  ██████  ███████
  */
 #include "FireControllerNode.hpp"
+#include <angles/angles.h>
+#include <cmath>
 
 
 namespace helios_cv {
@@ -36,7 +38,7 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
         params_.bullet_solver.air_coeff
     });
     // create publisher and subscription
-    gimbal_pub_ = this->create_publisher<helios_control_interfaces::msg::GimbalCmd>("gimbal_cmd", 10);
+    gimbal_pub_ = this->create_publisher<helios_control_interfaces::msg::GimbalCmd>("gimbal_cmd_", 10);
     shoot_pub_ = this->create_publisher<helios_control_interfaces::msg::ShooterCmd>("shooter_cmd", 10);
     imu_sub_ = this->create_subscription<sensor_interfaces::msg::ImuEuler>(
             "imu_euler", 10, std::bind(&FireController::imu_euler_callback, this, std::placeholders::_1));
@@ -58,10 +60,8 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
     // create process thread
     std::thread{
         [this]() {
-            rclcpp::Rate rate(300);
             while (rclcpp::ok()) {
                 target_process();
-                rate.sleep();
             }
         }
     }.detach();
@@ -73,7 +73,7 @@ FireController::~FireController() {
 
 void FireController::imu_euler_callback(sensor_interfaces::msg::ImuEuler::SharedPtr imu_msg) {
     // update
-    ypr_ = Eigen::Vector3d{imu_msg->yaw, imu_msg->pitch, imu_msg->roll};
+    imu_ypr_ = Eigen::Vector3d{imu_msg->yaw, imu_msg->pitch, imu_msg->roll};
 }
 
 void FireController::target_callback(autoaim_interfaces::msg::Target::SharedPtr target_msg) { 
@@ -81,9 +81,9 @@ void FireController::target_callback(autoaim_interfaces::msg::Target::SharedPtr 
 }
 
 void FireController::serial_callback(autoaim_interfaces::msg::ReceiveData::SharedPtr serial_msg) {
-    ypr_(0) = serial_msg->yaw;
-    ypr_(1) = serial_msg->pitch;
-    ypr_(2) = 0;
+    imu_ypr_(0) = serial_msg->yaw;
+    imu_ypr_(1) = serial_msg->pitch;
+    imu_ypr_(2) = 0;
     bullet_solver_->update_bullet_speed(serial_msg->bullet_speed);
 }
 
@@ -94,11 +94,10 @@ void FireController::target_process() {
     }
     // check if msg has expired
     if ((this->now() - target_msg_->header.stamp).seconds() > params_.message_expire_time) {
-        
         return;
     }
     // caculate new position
-    Eigen::Vector3d predicted_xyz = target_solver_->get_best_armor(target_msg_, ypr_(0), latency_);
+    Eigen::Vector3d predicted_xyz = target_solver_->get_best_armor(target_msg_, imu_ypr_(0), latency_);
     // caculate fly time and pitch compensation
     double fly_time = 0;
     // caculate compute time cost
@@ -106,56 +105,38 @@ void FireController::target_process() {
     if (params_.debug) {
         RCLCPP_INFO(logger_, "total latency: %f", total_latency);
     }
-    // caculate yaw and pitch
-    double pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
-    double yaw = std::atan2(predicted_xyz(1), predicted_xyz(0));
     // update gimbal cmd
-    helios_control_interfaces::msg::GimbalCmd gimbal_cmd;
-    gimbal_cmd.header.stamp = this->now();
-    gimbal_cmd.yaw = yaw;
-    gimbal_cmd.pitch = pitch;
-    gimbal_pub_->publish(gimbal_cmd);
+    gimbal_cmd_.header.stamp = this->now();
+    gimbal_cmd_.yaw = std::atan2(predicted_xyz(1), predicted_xyz(0));
+    gimbal_cmd_.pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
+    gimbal_cmd_.gimbal_mode = 1;
+    gimbal_pub_->publish(gimbal_cmd_);
     // update shoot cmd
-    helios_control_interfaces::msg::ShooterCmd shoot_cmd_msg;
-    shoot_cmd_msg.header.stamp = this->now();
-    shoot_cmd_msg.shooter_mode = 2;
-    shoot_cmd_msg.dial_mode = 2;
+    shooter_cmd_.header.stamp = this->now();
+    shooter_cmd_.shooter_mode = 2;
+    shooter_cmd_.dial_mode = 2;
     // judge shoot cmds
-    bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), yaw, pitch); 
-    shoot_cmd_msg.fire_flag = shoot_cmd ? 1 : 0;
-    shoot_cmd_msg.dial_velocity_level = 10;
-    shoot_pub_->publish(shoot_cmd_msg);
+    bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), target_solver_->best_armor_yaw_); 
+    shooter_cmd_.fire_flag = shoot_cmd ? 1 : 0;
+    shooter_cmd_.dial_velocity_level = 10;
+    shoot_pub_->publish(shooter_cmd_);
     // update predict latency
     latency_ = params_.latency + fly_time + total_latency;
 }
 
-bool FireController::judge_shoot_cmd(double distance, double yaw, double pitch) {
-    if (target_msg_->armors_num == OUTPOST_ARMOR_NUM && params_.is_hero) {
-        ///TODO: 英雄前哨战开火判断
-
+bool FireController::judge_shoot_cmd(double distance, double armor_yaw) {
+    double armor_width = 0.135f;
+    double armor_height = 0.125f;
+    double yaw_error_threshold = std::fabs(std::atan2(armor_width / 2.0f, distance));
+    double pitch_error_threshold = std::fabs(std::atan2(armor_height / 2.0f, distance));
+    Eigen::Vector3d car_center_ypd = target_solver_->get_car_center_ypd(target_msg_);
+    if (std::fabs(angles::shortest_angular_distance(gimbal_cmd_.yaw, angles::from_degrees(imu_ypr_[0])) < yaw_error_threshold &&
+        std::fabs(angles::shortest_angular_distance(gimbal_cmd_.pitch, angles::from_degrees(imu_ypr_[1]))) < pitch_error_threshold &&
+        std::fabs(angles::shortest_angular_distance(armor_yaw, car_center_ypd[0])) < M_PI / 5)) {
         return true;
     } else {
-        double armor_width = (target_msg_->armor_type == "LARGE" ? 0.23f : 0.135);
-        double armor_height = 0.125f * 3;
-        double yaw_error_threshold = std::atan2(armor_width / 2, distance) / (M_PI / 180.0);
-        double pitch_error_threshold = std::atan2(armor_height / 2, distance) / (M_PI / 180.0);
-        if (std::abs(yaw) < yaw_error_threshold &&
-            std::abs(pitch) < pitch_error_threshold) {
-            return true;
-        } else {
-            return false;    
-        }
+        return false;    
     }
 }
-
-Eigen::Vector3d FireController::xyz2ypd(const Eigen::Vector3d &_xyz) {
-    Eigen::Vector3d delta_ypd;
-    float x = _xyz[0], y = _xyz[1], z = _xyz[2];
-    delta_ypd[0] = -atan2(-y,x) / (M_PI / 180.0);
-    delta_ypd[1] = atan2(z, sqrt(y*y + x*x)) / (M_PI / 180.0); 
-    delta_ypd[2] = sqrt(x*x + y*y + z*z);
-    return delta_ypd;
-}
-
 
 } // namespace helios_cv

@@ -30,6 +30,10 @@ public:
     ~TargetSolver() = default;
 
     Eigen::Vector3d get_best_armor(autoaim_interfaces::msg::Target::SharedPtr target_msg, double now_yaw, double latency);
+
+    Eigen::Vector3d get_car_center_ypd(autoaim_interfaces::msg::Target::SharedPtr target_msg);
+
+    double best_armor_yaw_;
 private:
     std::vector<Eigen::Vector3d> armors_position_;
     std::vector<double> armors_yaw_;

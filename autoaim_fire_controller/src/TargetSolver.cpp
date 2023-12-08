@@ -9,6 +9,7 @@
  * ██   ██ ███████ ███████ ██  ██████  ███████
  */
 #include "TargetSolver.hpp"
+#include <Eigen/src/Core/Matrix.h>
 
 namespace helios_cv {
 
@@ -60,19 +61,27 @@ Eigen::Vector3d TargetSolver::get_best_armor(autoaim_interfaces::msg::Target::Sh
             is_current_pair_ = !is_current_pair_;
         }
     }
-    //计算枪管到目标装甲板yaw最小的那个装甲板
-    float yaw_diff_min = std::abs(yaw_ - armors_yaw_[0]);
+    Eigen::Vector3d car_center_ypd = get_car_center_ypd(target_msg);
+    best_armor_idx_ = 0;
+    double yaw_diff_min = std::fabs(angles::shortest_angular_distance(car_center_ypd[0], armors_yaw_[0]));
     for (int i = 1; i < 4; i++) {
-        float temp_yaw_diff = std::abs(yaw_ - armors_yaw_[i]);
+        double temp_yaw_diff = std::fabs(angles::shortest_angular_distance(car_center_ypd[0], armors_yaw_[i]));
         if (temp_yaw_diff < yaw_diff_min)
         {
             yaw_diff_min = temp_yaw_diff;
             best_armor_idx_ = i;
         }
     }
-    ///TODO: if we need this?
-    armors_position_[best_armor_idx_](2) -= 0.15;
+    best_armor_yaw_ = armors_yaw_[best_armor_idx_];
     return armors_position_[best_armor_idx_];
+}
+
+Eigen::Vector3d get_car_center_ypd(autoaim_interfaces::msg::Target::SharedPtr target_msg) {
+    float x = target_msg->position.x, y = target_msg->position.y, z = target_msg->position.z;
+    double car_center_yaw = -std::atan2(-y, x);
+    double car_center_pitch = std::atan2(z, std::sqrt(y * y + x * x)); 
+    double car_center_distance = std::sqrt(x * x + y * y + z * z);
+    return Eigen::Vector3d(car_center_yaw, car_center_pitch, car_center_distance);
 }
 
 } // helios_cv
