@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#include <helios_control_interfaces/msg/detail/shooter_cmd__struct.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 
@@ -76,15 +77,15 @@ private:
     double latency_ = 0.15;
 
     // void bullet_speed_callback();
+    helios_control_interfaces::msg::GimbalCmd gimbal_cmd_;
+    helios_control_interfaces::msg::ShooterCmd shooter_cmd_;
     
     void target_process();
 
-    bool judge_shoot_cmd(double distance, double yaw, double pitch);
-
-    Eigen::Vector3d xyz2ypd(const Eigen::Vector3d &_xyz);
+    bool judge_shoot_cmd(double distance, double armor_yaw);
 
     autoaim_interfaces::msg::Target::SharedPtr target_msg_;
-    Eigen::Vector3d ypr_ = Eigen::Vector3d::Zero();
+    Eigen::Vector3d imu_ypr_ = Eigen::Vector3d::Zero();
 
     rclcpp::Logger logger_ = rclcpp::get_logger("fire_controller");
 };
