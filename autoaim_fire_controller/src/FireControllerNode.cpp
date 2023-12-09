@@ -113,12 +113,11 @@ void FireController::target_process() {
     gimbal_pub_->publish(gimbal_cmd_);
     // update shoot cmd
     shooter_cmd_.header.stamp = this->now();
-    shooter_cmd_.shooter_mode = 2;
-    shooter_cmd_.dial_mode = 2;
+    shooter_cmd_.shooter_speed = 2;
     // judge shoot cmds
     bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), target_solver_->best_armor_yaw_); 
     shooter_cmd_.fire_flag = shoot_cmd ? 1 : 0;
-    shooter_cmd_.dial_velocity_level = 10;
+    shooter_cmd_.dial_vel = 10;
     shoot_pub_->publish(shooter_cmd_);
     // update predict latency
     latency_ = params_.latency + fly_time + total_latency;
