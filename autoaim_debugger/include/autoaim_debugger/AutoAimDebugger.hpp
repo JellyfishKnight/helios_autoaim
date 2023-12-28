@@ -10,10 +10,8 @@
  */
 #pragma once
 
-#include <autoaim_interfaces/msg/detail/armor__struct.hpp>
-#include <autoaim_interfaces/msg/detail/armors__struct.hpp>
-#include <autoaim_interfaces/msg/detail/target__struct.hpp>
-#include <opencv2/core/types.hpp>
+#include <geometry_msgs/msg/detail/point__struct.hpp>
+#include <geometry_msgs/msg/detail/quaternion__struct.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <angles/angles.h>
@@ -29,7 +27,7 @@
 #include <tf2/convert.h>
 #include <message_filters/subscriber.h>
 
-#include <rclcpp/subscription_base.hpp>
+#include <vector>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -41,6 +39,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/calib3d.hpp>
+#include <opencv2/core/quaternion.hpp>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -81,7 +80,7 @@ private:
     message_filters::Subscriber<sensor_msgs::msg::Image> image_sub_;
     std::shared_ptr<tf2_filter> tf2_filter_;
 
-
+    geometry_msgs::msg::TransformStamped transform_stamped_;
     // visualization markers
     visualization_msgs::msg::Marker detect_armor_marker_;
     visualization_msgs::msg::Marker text_marker_;
@@ -93,7 +92,6 @@ private:
     visualization_msgs::msg::Marker target_armor_marker_;
     visualization_msgs::msg::MarkerArray target_marker_array_;
 
-
     // armors and targets
     autoaim_interfaces::msg::Armors::SharedPtr armors_msg_;
     autoaim_interfaces::msg::Target::SharedPtr target_msg_;
@@ -102,6 +100,19 @@ private:
     cv::Point image_center_;
     cv::Mat camera_matrix_;
     cv::Mat distortion_coefficients_; 
+
+    // project infos
+    std::vector<std::vector<cv::Point3f>> detect_armor_corners_;
+    std::vector<cv::Mat> detect_tvecs_;
+    std::vector<cv::Quatd> detect_rvecs_;
+    std::vector<std::vector<cv::Point2f>> detect_image_points_;
+
+    std::vector<std::vector<geometry_msgs::msg::Point>> target_armor_corners_ros_;
+    std::vector<geometry_msgs::msg::Pose> target_pose_ros_;
+    std::vector<std::vector<cv::Point3f>> target_armor_corners_;
+    std::vector<cv::Mat> target_tvecs_;
+    std::vector<cv::Quatd> target_rvecs_;
+    std::vector<std::vector<cv::Point2f>> target_image_points_;
 
     // raw image
     cv::Mat raw_image_;

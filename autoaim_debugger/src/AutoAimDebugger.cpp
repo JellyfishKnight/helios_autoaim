@@ -9,16 +9,26 @@
  * ██   ██ ███████ ███████ ██  ██████  ███████
  */
 #include "AutoAimDebugger.hpp"
+#include <cstddef>
 #include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/msg/detail/point__struct.hpp>
+#include <geometry_msgs/msg/detail/pose__struct.hpp>
+#include <geometry_msgs/msg/detail/transform_stamped__struct.hpp>
 #include <image_transport/image_transport.hpp>
 #include <image_transport/publisher.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/core/quaternion.hpp>
+#include <opencv2/core/types.hpp>
 #include <rclcpp/node.hpp>
 #include <rclcpp/qos.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/detail/camera_info__struct.hpp>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/convert.h>
 #include <tf2/exceptions.h>
+#include <vector>
 
 
 namespace helios_cv {
@@ -41,13 +51,11 @@ AutoAimDebugger::AutoAimDebugger(const rclcpp::NodeOptions& options) : rclcpp::N
     armors_sub_ = this->create_subscription<autoaim_interfaces::msg::Armors>("armors", 10,
         [this](autoaim_interfaces::msg::Armors::SharedPtr msg) {
             armors_msg_ = std::move(msg);
-            publish_detector_markers();
         }
     );
     target_sub_ = this->create_subscription<autoaim_interfaces::msg::Target>("target", 10,
         [this](autoaim_interfaces::msg::Target::SharedPtr msg) {
             target_msg_ = std::move(msg);
-            publish_target_markers();
         }
     );
     // init tf2 utilities
@@ -85,11 +93,15 @@ void AutoAimDebugger::image_callback(sensor_msgs::msg::Image::ConstSharedPtr msg
     }
     /// transform target from odom to camera
     try {
-
+        transform_stamped_ = tf2_buffer_->lookupTransform("camera_optical_frame", "odom", msg->header.stamp);
     } catch (tf2::ExtrapolationException& e) {
         RCLCPP_ERROR(this->get_logger(), "tf2 exception: %s", e.what());
         return;
     }
+    /// Publish markers
+    publish_detector_markers();
+    publish_target_markers();
+    /// Draw debug infos on image
     draw_target();
     image_pub_.publish(cv_bridge::CvImage(msg->header, sensor_msgs::image_encodings::BGR8, raw_image_).toImageMsg());
 }
@@ -123,6 +135,20 @@ void AutoAimDebugger::publish_detector_markers() {
             text_marker_.id++;
             text_marker_.text = armor.number;
             detect_marker_array_.markers.push_back(text_marker_);
+            
+            std::vector<cv::Point3f> armor_corners;
+            cv::Point3f corner;
+            for (auto& point : detect_armor_marker_.points) {
+                corner.x = point.x;
+                corner.y = point.y;
+                corner.z = point.z;
+                armor_corners.emplace_back(corner);
+            }
+            detect_armor_corners_.emplace_back(armor_corners);
+            cv::Mat tvec = (cv::Mat_<double>(3, 1) << armor.pose.position.x, armor.pose.position.y, armor.pose.position.z);
+            detect_tvecs_.emplace_back(tvec);
+            cv::Quatd q(armor.pose.orientation.w, armor.pose.orientation.x, armor.pose.orientation.y, armor.pose.orientation.z);
+            detect_rvecs_.emplace_back(q);
         }
     } else {
         detect_armor_marker_.action = visualization_msgs::msg::Marker::DELETE;
@@ -184,13 +210,16 @@ void AutoAimDebugger::publish_target_markers() {
             }
             p_a.x = xc - r * cos(tmp_yaw);
             p_a.y = yc - r * sin(tmp_yaw);
-
+            
             target_armor_marker_.id = i;
             target_armor_marker_.pose.position = p_a;
             tf2::Quaternion q;
             q.setRPY(0, target_msg_->id == "outpost" ? -0.26 : 0.26, tmp_yaw);
             target_armor_marker_.pose.orientation = tf2::toMsg(q);
             target_marker_array_.markers.emplace_back(target_armor_marker_);
+            // Get target armor corners
+            target_armor_corners_ros_.emplace_back(target_armor_marker_.points);
+            target_pose_ros_.emplace_back(target_armor_marker_.pose);
         }
     } else {
         position_marker_.action = visualization_msgs::msg::Marker::DELETE;
@@ -204,20 +233,55 @@ void AutoAimDebugger::publish_target_markers() {
 void AutoAimDebugger::draw_target() {
     /// Draw image center
     cv::circle(raw_image_, image_center_, 5, cv::Scalar(0, 0, 255), 2);
-    /// Draw detected armors
-    for (auto& armor : armors_msg_->armors) {
-        cv::Point2f vertices[4];
-        for (int i = 0; i < 4; i++) {
-            vertices[i].x = armor.points[i].x;
-            vertices[i].y = armor.points[i].y;
+    /// Draw detect armors
+    for (std::size_t i = 0; i < detect_armor_corners_.size(); i++) {
+        std::vector<cv::Point2f> image_points;
+        cv::projectPoints(detect_armor_corners_[i], detect_rvecs_[i].toRotMat3x3(), detect_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+        for (size_t i = 0; i < image_points.size(); i++) {
+            cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 255, 0), 2);
         }
-        for (int i = 0; i < 4; i++) {
-            cv::line(raw_image_, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 255, 0), 2);
-        }
-        cv::putText(raw_image_, armor.number, vertices[0], cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
     }
-    /// Draw target
-    
+    /// Transform targets from odom to camera
+    try {
+        for (auto& pose : target_pose_ros_) {    
+            tf2::doTransform(pose, pose, transform_stamped_);
+        }
+        for (auto& corners : target_armor_corners_ros_) {
+            for (auto& corner : corners) {
+                tf2::doTransform(corner, corner, transform_stamped_);
+            }
+        }
+    } catch (tf2::TransformException& e) {
+        RCLCPP_ERROR(this->get_logger(), "tf2 exception: %s", e.what());
+        return;
+    }
+    /// Draw target armors
+    // convert ros point to cv point
+    for (auto& corners : target_armor_corners_ros_) {
+        std::vector<cv::Point3f> armor_corners;
+        cv::Point3f corner;
+        for (auto& point : corners) {
+            corner.x = point.x;
+            corner.y = point.y;
+            corner.z = point.z;
+            armor_corners.emplace_back(corner);
+        }
+        target_armor_corners_.emplace_back(armor_corners);
+    }
+    // convert ros pose to cv pose
+    for (auto& pose : target_pose_ros_) {
+        cv::Mat tvec = (cv::Mat_<double>(3, 1) << pose.position.x, pose.position.y, pose.position.z);
+        target_tvecs_.emplace_back(tvec);
+        cv::Quatd q(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+        target_rvecs_.emplace_back(q);
+    }
+    for (std::size_t i = 0; i < target_armor_corners_.size(); i++) {
+        std::vector<cv::Point2f> image_points;
+        cv::projectPoints(target_armor_corners_[i], target_rvecs_[i].toRotMat3x3(), target_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+        for (size_t i = 0; i < image_points.size(); i++) {
+            cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), 2);
+        }
+    }
 }
 
 void AutoAimDebugger::init_markers() {

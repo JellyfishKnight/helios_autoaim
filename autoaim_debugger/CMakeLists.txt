@@ -13,17 +13,15 @@ project(autoaim_debugger)
 find_package(ament_cmake_auto REQUIRED)
 find_package(OpenCV 4 REQUIRED)
 find_package(Eigen3 CONFIG REQUIRED)
-# find_package(OpenVINO REQUIRED)
 
 ament_auto_find_build_dependencies()
 
-# generate_parameter_library(
-#   detector_node_parameters # cmake target name for the parameter library
-#   src/detector_node_parameters.yaml # path to input yaml file
-# )
-
 ament_auto_add_library(${PROJECT_NAME} SHARED
-  DIRECTORY src
+  src/AutoAimDebugger.cpp
+)
+
+ament_auto_add_library(video_publisher SHARED
+  src/VideoPublisher.cpp
 )
 
 target_include_directories(
@@ -32,17 +30,35 @@ target_include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
+target_include_directories(
+  video_publisher PUBLIC
+  include/${PROJECT_NAME}
+  ${OpenCV_INCLUDE_DIRS}
+)
+
+
 target_link_libraries(
   ${PROJECT_NAME}
   ${OpenCV_LIBS}
   Eigen3::Eigen
-  # detector_node_parameters
+)
+
+target_link_libraries(
+  video_publisher
+  ${OpenCV_LIBS}
 )
 
 rclcpp_components_register_node(${PROJECT_NAME}
   PLUGIN helios_cv::AutoAimDebugger
   EXECUTABLE ${PROJECT_NAME}_node
 )
+
+rclcpp_components_register_node(
+  video_publisher
+  PLUGIN helios_cv::VideoPublisher
+  EXECUTABLE video_publisher_node
+)
+
 
 if(BUILD_TESTING) 
   find_package(ament_lint_auto REQUIRED)
@@ -57,4 +73,5 @@ endif()
 
 ament_auto_package(
   INSTALL_TO_SHARE
+  launch
   )
