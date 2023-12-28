@@ -12,11 +12,14 @@
 
 #include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <geometry_msgs/msg/detail/quaternion__struct.hpp>
+#include <opencv2/core/types.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <angles/angles.h>
 #include <image_transport/image_transport.hpp>
 
+#include <rclcpp/subscription_base.hpp>
+#include <sensor_msgs/msg/detail/image__struct.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/create_timer_ros.h>
@@ -28,6 +31,7 @@
 #include <message_filters/subscriber.h>
 
 #include <vector>
+#include <visualization_msgs/msg/detail/marker__struct.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -46,8 +50,6 @@
 
 namespace helios_cv {
 
-using tf2_filter = tf2_ros::MessageFilter<sensor_msgs::msg::Image>;
-
 class AutoAimDebugger : public rclcpp::Node {
 public:
     AutoAimDebugger(const rclcpp::NodeOptions& options);
@@ -65,20 +67,21 @@ private:
 
     void init_markers();
 
+    void calculateCornerCoordinates(const visualization_msgs::msg::Marker& marker, std::vector<geometry_msgs::msg::Point>& corners);
+
     // publishers and subscribers
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
     rclcpp::Subscription<autoaim_interfaces::msg::Armors>::SharedPtr armors_sub_;
     rclcpp::Subscription<autoaim_interfaces::msg::Target>::SharedPtr target_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr detect_marker_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr target_marker_pub_;
 
     image_transport::Publisher image_pub_;
 
-    // tf2 utlities
+    // tf2 utilities
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
-    message_filters::Subscriber<sensor_msgs::msg::Image> image_sub_;
-    std::shared_ptr<tf2_filter> tf2_filter_;
 
     geometry_msgs::msg::TransformStamped transform_stamped_;
     // visualization markers
@@ -102,17 +105,14 @@ private:
     cv::Mat distortion_coefficients_; 
 
     // project infos
-    std::vector<std::vector<cv::Point3f>> detect_armor_corners_;
+    std::vector<cv::Point3f> object_points_;
+
     std::vector<cv::Mat> detect_tvecs_;
     std::vector<cv::Quatd> detect_rvecs_;
-    std::vector<std::vector<cv::Point2f>> detect_image_points_;
 
-    std::vector<std::vector<geometry_msgs::msg::Point>> target_armor_corners_ros_;
     std::vector<geometry_msgs::msg::Pose> target_pose_ros_;
-    std::vector<std::vector<cv::Point3f>> target_armor_corners_;
     std::vector<cv::Mat> target_tvecs_;
     std::vector<cv::Quatd> target_rvecs_;
-    std::vector<std::vector<cv::Point2f>> target_image_points_;
 
     // raw image
     cv::Mat raw_image_;
