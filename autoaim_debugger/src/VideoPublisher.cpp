@@ -48,6 +48,7 @@ VideoPublisher::VideoPublisher(const rclcpp::NodeOptions& options) : rclcpp::Nod
             sensor_msgs::msg::Image::SharedPtr msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::BGR8, frame_).toImageMsg();
             msg->header.frame_id = "camera_optical_frame";
             msg->header.stamp = this->now();
+            camera_info_msg_.header = msg->header;
             image_pub_.publish(*msg, camera_info_msg_);
         }
     }).detach();

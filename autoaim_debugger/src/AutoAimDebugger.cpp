@@ -22,6 +22,7 @@
 #include <opencv2/core/quaternion.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <rclcpp/duration.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/node.hpp>
@@ -33,6 +34,7 @@
 #include <tf2/convert.h>
 #include <tf2/exceptions.h>
 #include <vector>
+#include <visualization_msgs/msg/detail/marker__struct.hpp>
 
 
 namespace helios_cv {
@@ -113,6 +115,7 @@ void AutoAimDebugger::publish_detector_markers() {
     detect_marker_array_.markers.clear();
     detect_rvecs_.clear();
     detect_tvecs_.clear();
+    armor_text_.clear();
     /// Push detect armor markers
     detect_armor_marker_.id = text_marker_.id = 0;
     if (!armors_msg_->armors.empty()) {
@@ -120,6 +123,7 @@ void AutoAimDebugger::publish_detector_markers() {
             detect_armor_marker_.header = armors_msg_->header;
             detect_armor_marker_.pose = armor.pose;
             detect_armor_marker_.id++;
+            detect_armor_marker_.scale.y = armor.type == 0 ? 0.135 : 0.23;
             detect_marker_array_.markers.push_back(detect_armor_marker_);
             text_marker_.header = armors_msg_->header;
             text_marker_.pose = armor.pose;
@@ -127,7 +131,8 @@ void AutoAimDebugger::publish_detector_markers() {
             text_marker_.id++;
             text_marker_.text = armor.number;
             detect_marker_array_.markers.push_back(text_marker_);
-            
+
+            armor_text_.emplace_back(armor.number);
             cv::Mat tvec = (cv::Mat_<double>(3, 1) << armor.pose.position.x, armor.pose.position.y, armor.pose.position.z);
             detect_tvecs_.emplace_back(tvec);
             cv::Quatd q(armor.pose.orientation.w, armor.pose.orientation.x, armor.pose.orientation.y, armor.pose.orientation.z);
@@ -136,9 +141,9 @@ void AutoAimDebugger::publish_detector_markers() {
     } else {
         detect_armor_marker_.action = visualization_msgs::msg::Marker::DELETE;
         text_marker_.action = visualization_msgs::msg::Marker::DELETE;
-        detect_marker_array_.markers.push_back(detect_armor_marker_);
-        detect_marker_array_.markers.push_back(text_marker_);
     }
+    detect_armor_marker_.action = armors_msg_->armors.empty() ? visualization_msgs::msg::Marker::DELETE : visualization_msgs::msg::Marker::ADD;
+    detect_marker_array_.markers.emplace_back(detect_armor_marker_);
     detect_marker_pub_->publish(detect_marker_array_);
 }
 
@@ -150,6 +155,9 @@ void AutoAimDebugger::publish_target_markers() {
     target_tvecs_.clear();
     /// Push target marker
     target_armor_marker_.header = target_msg_->header;
+    position_marker_.header = target_msg_->header;
+    linear_v_marker_.header = target_msg_->header;
+    angular_v_marker_.header = target_msg_->header;
     if (target_msg_->tracking) {
         double yaw = target_msg_->yaw, r1 = target_msg_->radius_1, r2 = target_msg_->radius_2;
         double xc = target_msg_->position.x, yc = target_msg_->position.y, zc = target_msg_->position.z;
@@ -213,6 +221,10 @@ void AutoAimDebugger::publish_target_markers() {
         angular_v_marker_.action = visualization_msgs::msg::Marker::DELETE;
         target_armor_marker_.action = visualization_msgs::msg::Marker::DELETE;
     }
+    target_marker_array_.markers.emplace_back(position_marker_);
+    target_marker_array_.markers.emplace_back(linear_v_marker_);
+    target_marker_array_.markers.emplace_back(angular_v_marker_);
+
     target_marker_pub_->publish(target_marker_array_);
 }
 
@@ -224,12 +236,13 @@ void AutoAimDebugger::draw_target() {
         std::vector<cv::Point2f> image_points;
         cv::projectPoints(object_points_, detect_rvecs_[i].toRotVec(), detect_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
         for (size_t i = 0; i < image_points.size(); i++) {
-            cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 255, 0), 2);
+            cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 255, 0), cv::LINE_4);
         }
-        for (auto point : image_points) {
-            RCLCPP_WARN(this->get_logger(), "detect armor corner: (%f, %f)", point.x, point.y);
-        }
+        cv::line(raw_image_, image_points[0], image_points[2], cv::Scalar(0, 255, 0), cv::LINE_4);
+        cv::line(raw_image_, image_points[1], image_points[3], cv::Scalar(0, 255, 0), cv::LINE_4);
+        cv::putText(raw_image_, armor_text_[i], image_points[1], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
     }
+
     /// Transform targets from odom to camera
     try {
         for (auto& pose : target_pose_ros_) {    
@@ -251,7 +264,7 @@ void AutoAimDebugger::draw_target() {
         std::vector<cv::Point2f> image_points;
         cv::projectPoints(object_points_, target_rvecs_[i].toRotMat3x3(), target_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
         for (size_t i = 0; i < image_points.size(); i++) {
-            cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), 2);
+            cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), cv::LINE_4);
         }
     }
 }

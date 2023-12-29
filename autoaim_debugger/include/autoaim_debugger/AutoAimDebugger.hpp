@@ -109,10 +109,12 @@ private:
 
     std::vector<cv::Mat> detect_tvecs_;
     std::vector<cv::Quatd> detect_rvecs_;
+    std::vector<std::string> armor_text_;
 
     std::vector<geometry_msgs::msg::Pose> target_pose_ros_;
     std::vector<cv::Mat> target_tvecs_;
     std::vector<cv::Quatd> target_rvecs_;
+
 
     // raw image
     cv::Mat raw_image_;
