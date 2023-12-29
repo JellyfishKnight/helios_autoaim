@@ -10,9 +10,6 @@
  */
 #pragma once
 
-#include <geometry_msgs/msg/detail/point__struct.hpp>
-#include <geometry_msgs/msg/detail/quaternion__struct.hpp>
-#include <opencv2/core/types.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <angles/angles.h>
@@ -66,8 +63,6 @@ private:
     void draw_target();
 
     void init_markers();
-
-    void calculateCornerCoordinates(const visualization_msgs::msg::Marker& marker, std::vector<geometry_msgs::msg::Point>& corners);
 
     // publishers and subscribers
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;

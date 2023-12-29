@@ -34,7 +34,6 @@
 #include <tf2/convert.h>
 #include <tf2/exceptions.h>
 #include <vector>
-#include <visualization_msgs/msg/detail/marker__struct.hpp>
 
 
 namespace helios_cv {
@@ -326,26 +325,6 @@ void AutoAimDebugger::init_markers() {
     object_points_.emplace_back(cv::Point3f(0, -half_y, half_z));
     object_points_.emplace_back(cv::Point3f(0, -half_y, -half_z));
 
-}
-
-
-void AutoAimDebugger::calculateCornerCoordinates(const visualization_msgs::msg::Marker& marker, std::vector<geometry_msgs::msg::Point>& corners) {
-    corners.resize(4);
-    // Calculate corner coordinates
-    tf2::Quaternion quaternion(marker.pose.orientation.x, marker.pose.orientation.y, marker.pose.orientation.z, marker.pose.orientation.w);
-    tf2::Matrix3x3 rotation_matrix(quaternion);
-    tf2::Vector3 initial_position(marker.scale.x / 2, marker.scale.y / 2, marker.scale.z / 2); // Initial position of the corner
-
-    for (int i = 0; i < 4; i++) {
-        tf2::Vector3 rotated_position = rotation_matrix * initial_position;
-        corners[i].x = marker.pose.position.x + rotated_position.x();
-        corners[i].y = marker.pose.position.y + rotated_position.y();
-        corners[i].z = marker.pose.position.z + rotated_position.z();
-
-        // Update initial_position for the next corner
-        initial_position.setX(-initial_position.x());
-        initial_position.setY(-initial_position.y());
-    }
 }
 
 } // namespace helios_cv
