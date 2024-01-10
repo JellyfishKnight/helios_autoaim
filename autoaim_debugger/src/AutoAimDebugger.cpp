@@ -274,6 +274,22 @@ void AutoAimDebugger::draw_target() {
             cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), cv::LINE_4);
         }
     }
+    /// Transform bullets from odom to camera
+    try {
+        for (auto tvec : bullet_tvecs_) {    
+            geometry_msgs::msg::Point point;
+            point.x = tvec.at<double>(0, 0);
+            point.y = tvec.at<double>(1, 0);
+            point.z = tvec.at<double>(2, 0);
+            tf2::doTransform(point, point, transform_stamped_);
+            tvec.at<double>(0, 0) = point.x;
+            tvec.at<double>(1, 0) = point.y;
+            tvec.at<double>(2, 0) = point.z;
+        }
+    } catch (tf2::TransformException& e) {
+        RCLCPP_ERROR(this->get_logger(), "tf2 exception: %s", e.what());
+        return;
+    }
     /// Draw Bullet tracks
     for (std::size_t i = 0; i < bullet_tvecs_.size(); i++) {
         std::vector<cv::Point2f> image_points;
