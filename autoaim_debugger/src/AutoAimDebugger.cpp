@@ -29,6 +29,7 @@
 #include <rclcpp/qos.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/detail/camera_info__struct.hpp>
+#include <string>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/convert.h>
@@ -262,6 +263,7 @@ void AutoAimDebugger::draw_target() {
     for (std::size_t i = 0; i < target_tvecs_.size(); i++) {
         std::vector<cv::Point2f> image_points;
         cv::projectPoints(object_points_, target_rvecs_[i].toRotMat3x3(), target_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+        cv::putText(raw_image_, std::to_string(i), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
         for (size_t i = 0; i < image_points.size(); i++) {
             cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), cv::LINE_4);
         }
@@ -324,7 +326,6 @@ void AutoAimDebugger::init_markers() {
     object_points_.emplace_back(cv::Point3f(0, half_y, half_z));
     object_points_.emplace_back(cv::Point3f(0, -half_y, half_z));
     object_points_.emplace_back(cv::Point3f(0, -half_y, -half_z));
-
 }
 
 } // namespace helios_cv

@@ -110,7 +110,6 @@ private:
     std::vector<cv::Mat> target_tvecs_;
     std::vector<cv::Quatd> target_rvecs_;
 
-
     // raw image
     cv::Mat raw_image_;
 };
