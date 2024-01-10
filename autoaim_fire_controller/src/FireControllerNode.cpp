@@ -107,8 +107,8 @@ void FireController::target_process() {
     }
     // update gimbal cmd
     gimbal_cmd_.header.stamp = this->now();
-    gimbal_cmd_.yaw = std::atan2(predicted_xyz(1), predicted_xyz(0));
-    gimbal_cmd_.pitch = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
+    gimbal_cmd_.yaw_value = std::atan2(predicted_xyz(1), predicted_xyz(0));
+    gimbal_cmd_.pitch_value = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
     gimbal_cmd_.gimbal_mode = 1;
     gimbal_pub_->publish(gimbal_cmd_);
     // update shoot cmd
@@ -129,8 +129,8 @@ bool FireController::judge_shoot_cmd(double distance, double armor_yaw) {
     double yaw_error_threshold = std::fabs(std::atan2(armor_width / 2.0f, distance));
     double pitch_error_threshold = std::fabs(std::atan2(armor_height / 2.0f, distance));
     Eigen::Vector3d car_center_ypd = target_solver_->get_car_center_ypd(target_msg_);
-    if (std::fabs(angles::shortest_angular_distance(gimbal_cmd_.yaw, angles::from_degrees(imu_ypr_[0])) < yaw_error_threshold &&
-        std::fabs(angles::shortest_angular_distance(gimbal_cmd_.pitch, angles::from_degrees(imu_ypr_[1]))) < pitch_error_threshold &&
+    if (std::fabs(angles::shortest_angular_distance(gimbal_cmd_.yaw_value, angles::from_degrees(imu_ypr_[0])) < yaw_error_threshold &&
+        std::fabs(angles::shortest_angular_distance(gimbal_cmd_.pitch_value, angles::from_degrees(imu_ypr_[1]))) < pitch_error_threshold &&
         std::fabs(angles::shortest_angular_distance(armor_yaw, car_center_ypd[0])) < M_PI / 5)) {
         return true;
     } else {

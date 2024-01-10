@@ -10,6 +10,8 @@
  */
 #pragma once
 
+#include <geometry_msgs/msg/detail/transform_stamped__struct.hpp>
+#include <opencv2/core/types.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <angles/angles.h>
@@ -45,6 +47,12 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#define BULLET_SPEED 30.0
+#define BULLET_RADIUS 0.015
+#define BULLET_INTERATE_NUM 20
+
+#define AIR_COEFF 0.005
+
 namespace helios_cv {
 
 class AutoAimDebugger : public rclcpp::Node {
@@ -59,6 +67,8 @@ private:
     void publish_detector_markers();
 
     void publish_target_markers();
+
+    void bullistic_model();
 
     void draw_target();
 
@@ -79,6 +89,8 @@ private:
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
     geometry_msgs::msg::TransformStamped transform_stamped_;
+    geometry_msgs::msg::TransformStamped yaw_pitch_ts_;
+    
     // visualization markers
     visualization_msgs::msg::Marker detect_armor_marker_;
     visualization_msgs::msg::Marker text_marker_;
@@ -101,6 +113,7 @@ private:
 
     // project infos
     std::vector<cv::Point3f> object_points_;
+    std::vector<cv::Point3f> bullet_object_points_;
 
     std::vector<cv::Mat> detect_tvecs_;
     std::vector<cv::Quatd> detect_rvecs_;
@@ -109,6 +122,10 @@ private:
     std::vector<geometry_msgs::msg::Pose> target_pose_ros_;
     std::vector<cv::Mat> target_tvecs_;
     std::vector<cv::Quatd> target_rvecs_;
+
+    double target_distance_;
+    std::vector<cv::Mat> bullet_tvecs_;
+
 
     // raw image
     cv::Mat raw_image_;

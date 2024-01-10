@@ -9,6 +9,7 @@
  * ██   ██ ███████ ███████ ██  ██████  ███████
  */
 #include "AutoAimDebugger.hpp"
+#include <cmath>
 #include <cstddef>
 #include <cv_bridge/cv_bridge.h>
 #include <functional>
@@ -96,6 +97,7 @@ void AutoAimDebugger::image_callback(sensor_msgs::msg::Image::ConstSharedPtr msg
         /// transform target from odom to camera
         try {
             transform_stamped_ = tf2_buffer_->lookupTransform("camera_optical_frame", "odom", msg->header.stamp, rclcpp::Duration::from_seconds(0.1));
+            yaw_pitch_ts_ = tf2_buffer_->lookupTransform("gimbal_link", "odom", msg->header.stamp, rclcpp::Duration::from_seconds(0.1));
         } catch (tf2::ExtrapolationException& e) {
             RCLCPP_ERROR(this->get_logger(), "tf2 exception: %s", e.what());
             return;
@@ -103,6 +105,8 @@ void AutoAimDebugger::image_callback(sensor_msgs::msg::Image::ConstSharedPtr msg
         /// Publish markers
         publish_detector_markers();
         publish_target_markers();
+        /// Caculate bullet tracks
+        bullistic_model();
         /// Draw debug infos on image
         draw_target();
     }
@@ -163,6 +167,8 @@ void AutoAimDebugger::publish_target_markers() {
         double xc = target_msg_->position.x, yc = target_msg_->position.y, zc = target_msg_->position.z;
         double vxc = target_msg_->velocity.x, vyc = target_msg_->velocity.y, vzc = target_msg_->velocity.z, vyaw = target_msg_->v_yaw;
         double dz = target_msg_->dz;
+
+        target_distance_ = std::sqrt(xc * xc + zc * zc);
 
         position_marker_.action = visualization_msgs::msg::Marker::ADD;
         position_marker_.pose.position.x = xc;
@@ -268,6 +274,15 @@ void AutoAimDebugger::draw_target() {
             cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), cv::LINE_4);
         }
     }
+    /// Draw Bullet tracks
+    for (std::size_t i = 0; i < bullet_tvecs_.size(); i++) {
+        std::vector<cv::Point2f> image_points;
+        cv::Quatd q(1, 0, 0, 0);
+        cv::projectPoints(bullet_object_points_, q.toRotMat3x3(), bullet_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+        double radius = cv::norm(image_points[0] - image_points[1]) / std::sqrt(2);
+        cv::Point2f bullet_center = (image_points[0] + image_points[1] + image_points[2] + image_points[3]) / 4;
+        cv::circle(raw_image_, bullet_center, radius, cv::Scalar(255, 0, 0), 2);
+    }
 }
 
 void AutoAimDebugger::init_markers() {
@@ -319,14 +334,49 @@ void AutoAimDebugger::init_markers() {
     target_armor_marker_.color.a = 1.0;
     target_armor_marker_.color.r = 1.0;
 
-    double half_y = 135 / 2.0 / 1000.0;
-    double half_z = 125 / 2.0 / 1000.0;
+    double armor_half_y = 135 / 2.0 / 1000.0;
+    double armor_half_z = 125 / 2.0 / 1000.0;
 
-    object_points_.emplace_back(cv::Point3f(0, half_y, -half_z));
-    object_points_.emplace_back(cv::Point3f(0, half_y, half_z));
-    object_points_.emplace_back(cv::Point3f(0, -half_y, half_z));
-    object_points_.emplace_back(cv::Point3f(0, -half_y, -half_z));
+    object_points_.emplace_back(cv::Point3f(0, armor_half_y, -armor_half_z));
+    object_points_.emplace_back(cv::Point3f(0, armor_half_y, armor_half_z));
+    object_points_.emplace_back(cv::Point3f(0, -armor_half_y, armor_half_z));
+    object_points_.emplace_back(cv::Point3f(0, -armor_half_y, -armor_half_z));
+
+    bullet_object_points_.emplace_back(cv::Point3f(0, BULLET_RADIUS, 0));
+    bullet_object_points_.emplace_back(cv::Point3f(0, -BULLET_RADIUS, 0));
+    bullet_object_points_.emplace_back(cv::Point3f(0, 0, BULLET_RADIUS));
+    bullet_object_points_.emplace_back(cv::Point3f(0, 0, -BULLET_RADIUS));
 }
+
+void AutoAimDebugger::bullistic_model() {
+    bullet_tvecs_.clear();
+    // get pitch
+    double x, y, z, w;
+    x = yaw_pitch_ts_.transform.rotation.x;
+    y = yaw_pitch_ts_.transform.rotation.y;
+    z = yaw_pitch_ts_.transform.rotation.z;
+    w = yaw_pitch_ts_.transform.rotation.w;
+    tf2::Quaternion q(x, y, z, w);
+    tf2::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    // caculate bullet positions
+    double vel_x = BULLET_SPEED * std::cos(pitch);
+    double vel_y = BULLET_SPEED * std::sin(pitch);
+    double fly_time = (exp(AIR_COEFF * target_distance_) - 1) / vel_x / AIR_COEFF;
+    double time_slice = fly_time / BULLET_INTERATE_NUM;
+    for (double i = 0; i < fly_time; i += time_slice) {
+        double temp_x = std::log(i * AIR_COEFF * vel_x + 1) / AIR_COEFF;
+        double temp_y = vel_y * i - 0.5 * 9.8 * i * i;
+        double temp_z = 0;
+        cv::Mat p(3, 1, CV_64FC1);
+        p.at<double>(0, 0) = x;
+        p.at<double>(1, 0) = temp_y;
+        p.at<double>(2, 0) = temp_z;
+        bullet_tvecs_.emplace_back(p);
+    }
+}
+
 
 } // namespace helios_cv
 
