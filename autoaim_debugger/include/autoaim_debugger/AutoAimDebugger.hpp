@@ -49,9 +49,9 @@
 
 #define BULLET_SPEED 30.0
 #define BULLET_RADIUS 0.015
-#define BULLET_INTERATE_NUM 20
+#define BULLET_INTERATE_NUM 10
 
-#define AIR_COEFF 0.005
+#define AIR_COEFF 0.038
 
 namespace helios_cv {
 

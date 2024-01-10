@@ -19,6 +19,7 @@
 #include <image_transport/image_transport.hpp>
 #include <image_transport/publisher.hpp>
 #include <opencv2/calib3d.hpp>
+#include <opencv2/core.hpp>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/quaternion.hpp>
 #include <opencv2/core/types.hpp>
@@ -168,7 +169,7 @@ void AutoAimDebugger::publish_target_markers() {
         double vxc = target_msg_->velocity.x, vyc = target_msg_->velocity.y, vzc = target_msg_->velocity.z, vyaw = target_msg_->v_yaw;
         double dz = target_msg_->dz;
 
-        target_distance_ = std::sqrt(xc * xc + zc * zc);
+        target_distance_ = std::sqrt(xc * xc + yc * yc);
 
         position_marker_.action = visualization_msgs::msg::Marker::ADD;
         position_marker_.pose.position.x = xc;
@@ -275,29 +276,39 @@ void AutoAimDebugger::draw_target() {
         }
     }
     /// Transform bullets from odom to camera
+    std::vector<cv::Quatd> rvecs;
     try {
         for (auto tvec : bullet_tvecs_) {    
-            geometry_msgs::msg::Point point;
-            point.x = tvec.at<double>(0, 0);
-            point.y = tvec.at<double>(1, 0);
-            point.z = tvec.at<double>(2, 0);
+            geometry_msgs::msg::Pose point;
+            point.orientation.w = 1;
+            point.orientation.x = 0;
+            point.orientation.y = 0;
+            point.orientation.z = 0;
+            point.position.x = tvec.at<double>(0, 0);
+            point.position.y = tvec.at<double>(1, 0);
+            point.position.z = tvec.at<double>(2, 0);
             tf2::doTransform(point, point, transform_stamped_);
-            tvec.at<double>(0, 0) = point.x;
-            tvec.at<double>(1, 0) = point.y;
-            tvec.at<double>(2, 0) = point.z;
+            tvec.at<double>(0, 0) = point.position.x;
+            tvec.at<double>(1, 0) = point.position.y;
+            tvec.at<double>(2, 0) = point.position.z;
+            rvecs.emplace_back(cv::Quatd{point.orientation.w, point.orientation.x, point.orientation.y, point.orientation.z});
         }
     } catch (tf2::TransformException& e) {
         RCLCPP_ERROR(this->get_logger(), "tf2 exception: %s", e.what());
         return;
     }
     /// Draw Bullet tracks
-    for (std::size_t i = 0; i < bullet_tvecs_.size(); i++) {
+    for (std::size_t i = 1; i < bullet_tvecs_.size(); i++) {
         std::vector<cv::Point2f> image_points;
-        cv::Quatd q(1, 0, 0, 0);
-        cv::projectPoints(bullet_object_points_, q.toRotMat3x3(), bullet_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+        cv::projectPoints(bullet_object_points_, rvecs[i].toRotMat3x3(), bullet_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
         double radius = cv::norm(image_points[0] - image_points[1]) / std::sqrt(2);
         cv::Point2f bullet_center = (image_points[0] + image_points[1] + image_points[2] + image_points[3]) / 4;
-        cv::circle(raw_image_, bullet_center, radius, cv::Scalar(255, 0, 0), 2);
+        try {
+            cv::circle(raw_image_, bullet_center, radius, cv::Scalar(255, 0, 0), 4);
+            cv::putText(raw_image_, std::to_string(i), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+        } catch (cv::Exception& e) {
+            RCLCPP_INFO(this->get_logger(), "center x %f y %f", bullet_center.x, bullet_center.y);
+        }
     }
 }
 
@@ -376,17 +387,20 @@ void AutoAimDebugger::bullistic_model() {
     tf2::Matrix3x3 m(q);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
+    // RCLCPP_INFO(this->get_logger(), "roll %f yaw %f pitch %f", roll, yaw , pitch);
     // caculate bullet positions
     double vel_x = BULLET_SPEED * std::cos(pitch);
-    double vel_y = BULLET_SPEED * std::sin(pitch);
-    double fly_time = (exp(AIR_COEFF * target_distance_) - 1) / vel_x / AIR_COEFF;
-    double time_slice = fly_time / BULLET_INTERATE_NUM;
-    for (double i = 0; i < fly_time; i += time_slice) {
-        double temp_x = std::log(i * AIR_COEFF * vel_x + 1) / AIR_COEFF;
-        double temp_y = vel_y * i - 0.5 * 9.8 * i * i;
-        double temp_z = 0;
+    double vel_z = BULLET_SPEED * std::sin(pitch);
+    double distance_slice = target_distance_ / BULLET_INTERATE_NUM;
+    RCLCPP_WARN(this->get_logger(), "vx %f vz %f", vel_x, vel_z);
+    for (double i = 0; i <= target_distance_; i += distance_slice) {
+        double time = (exp(AIR_COEFF * i) - 1) / vel_x / AIR_COEFF;
+        double temp_x = i * std::cos(-yaw);
+        double temp_y = i * std::sin(-yaw);
+        double temp_z = vel_z * time - 0.5 * 9.8 * time * time;
+        RCLCPP_INFO(this->get_logger(), "bullet x %f y %f z %f", temp_x, temp_y, temp_z); // use the output only when you need to debug
         cv::Mat p(3, 1, CV_64FC1);
-        p.at<double>(0, 0) = x;
+        p.at<double>(0, 0) = temp_x;
         p.at<double>(1, 0) = temp_y;
         p.at<double>(2, 0) = temp_z;
         bullet_tvecs_.emplace_back(p);
