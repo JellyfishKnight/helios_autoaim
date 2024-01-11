@@ -170,7 +170,7 @@ void AutoAimDebugger::publish_target_markers() {
         double dz = target_msg_->dz;
 
         target_distance_ = std::sqrt(xc * xc + yc * yc);
-        RCLCPP_WARN(this->get_logger(), "xc %f yc %f zc %f", xc, yc, zc);
+        // RCLCPP_WARN(this->get_logger(), "xc %f yc %f zc %f", xc, yc, zc);
 
         position_marker_.action = visualization_msgs::msg::Marker::ADD;
         position_marker_.pose.position.x = xc;
@@ -399,8 +399,8 @@ void AutoAimDebugger::bullistic_model() {
         double temp_x = i * std::cos(-yaw);
         double temp_y = i * std::sin(-yaw);
         double temp_z = vel_z * time - 0.5 * 9.8 * time * time;
-        if (i == target_distance_)
-            RCLCPP_INFO(this->get_logger(), "bullet x %f y %f z %f", temp_x, temp_y, temp_z); // use the output only when you need to debug
+        // if (i == target_distance_)
+        //     RCLCPP_INFO(this->get_logger(), "bullet x %f y %f z %f", temp_x, temp_y, temp_z); // use the output only when you need to debug
         cv::Mat p(3, 1, CV_64FC1);
         p.at<double>(0, 0) = temp_x;
         p.at<double>(1, 0) = temp_y;
