@@ -47,7 +47,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#define BULLET_SPEED 30.0
+#define BULLET_SPEED 27.0
 #define BULLET_RADIUS 0.015
 #define BULLET_INTERATE_NUM 10
 
@@ -125,7 +125,7 @@ private:
 
     double target_distance_;
     std::vector<cv::Mat> bullet_tvecs_;
-
+    std::vector<double> bullet_distance_;
 
     // raw image
     cv::Mat raw_image_;
