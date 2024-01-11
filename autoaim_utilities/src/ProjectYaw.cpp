@@ -5,13 +5,11 @@
 #include <cmath>
 #include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <geometry_msgs/msg/detail/point_stamped__struct.hpp>
-#include <geometry_msgs/msg/detail/quaternion__struct.hpp>
 #include <geometry_msgs/msg/detail/transform_stamped__struct.hpp>
 #include <math.h>
 #include <memory>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core/mat.hpp>
-#include <opencv2/core/quaternion.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/imgproc.hpp>
 #include <rclcpp/logger.hpp>
@@ -54,23 +52,26 @@ ProjectYaw::ProjectYaw(const std::array<double, 9> & camera_matrix, const std::v
 
 ProjectYaw::~ProjectYaw() {}
 
-void ProjectYaw::set_cam2odom(const geometry_msgs::msg::TransformStamped& ts) {
-    cam2odom_r_ = cv::Quatd(ts.transform.rotation.w, ts.transform.rotation.x, ts.transform.rotation.y, ts.transform.rotation.z);
-    cam2odom_t_ = (cv::Mat_<double>(3, 1) << ts.transform.translation.x, ts.transform.translation.y, ts.transform.translation.z);
-}
-
-void ProjectYaw::set_odom2cam(const geometry_msgs::msg::TransformStamped &ts) {
-    odom2cam_r_ = cv::Quatd(ts.transform.rotation.w, ts.transform.rotation.x, ts.transform.rotation.y, ts.transform.rotation.z);
-    odom2cam_t_ = (cv::Mat_<double>(3, 1) << ts.transform.translation.x, ts.transform.translation.y, ts.transform.translation.z);
+cv::Mat ProjectYaw::get_transform_info(geometry_msgs::msg::TransformStamped ts) {
+    // turn quaternion into rotation matrix 
+    // for more see paper: https://danceswithcode.net/engineeringnotes/quaternions/quaternions.html
+    double x = ts.transform.rotation.x,  y = ts.transform.rotation.y,  z = ts.transform.rotation.z, w = ts.transform.rotation.w;
+    return (cv::Mat_<double>(3, 3) << 
+            1 - 2 * (z * z + y * y), 2 * (y * x - z * w), 2 * (x * z + y * w),
+            2 * (y * x + z * w), 1 - 2 * (x * x + z * z), 2 * (z * y - x * w),
+            2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (y * y + x * x));
 }
 
 double ProjectYaw::diff_function(double yaw) {
     // Caculate rotation matrix
     cv::Mat rotation_matrix;
     get_rotation_matrix(yaw, rotation_matrix);
-    rotation_matrix = odom2cam_r_.toRotMat3x3() * rotation_matrix;
+    rotation_matrix = odom2cam_r_ * rotation_matrix;
+    // Turn rotation matrix into rotation vector
+    cv::Mat rvec;
+    cv::Rodrigues(rotation_matrix, rvec);
     // caculate projection points
-    cv::projectPoints(object_points_, rotation_matrix, tvec_ + cam2odom_t_, camera_matrix_, dist_coeffs_, projected_points_);
+    cv::projectPoints(object_points_, rvec, tvec_, camera_matrix_, dist_coeffs_, projected_points_);
     // Caculate the difference between projected points and image points
     double diff = 0;
     for (int i = 0; i < 4; i++) {
@@ -160,7 +161,7 @@ void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) const {
     rotation_mat = R_z * R_y * R_x;
 }
 
-void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &armor_pose_in_cam, cv::Mat tvec) {
+void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec) {
     double yaw = -M_PI;
     tvec_ = tvec;
     // Fill in image points
@@ -194,13 +195,14 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &armor_pose_in_c
         pitch_ = angles::from_degrees(15.0);
     }
     // Take the yaw from pnp as a initial value
-    armor_pose_in_cam = cam2odom_r_.toRotMat3x3() * armor_pose_in_cam;
-    double armor_yaw_from_pnp = std::atan2(armor_pose_in_cam.at<double>(1, 0), armor_pose_in_cam.at<double>(0, 0));
+    r_mat = cam2odom_r_ * r_mat;
+    /// THINKING: Can we consider the roll of armor ?
+    double armor_yaw_from_pnp = std::atan2(r_mat.at<double>(1, 0), r_mat.at<double>(0, 0));
     // Get yaw in about 0 to 360 degree
     yaw = phi_optimization(armor_yaw_from_pnp - M_PI / 6, armor_yaw_from_pnp + M_PI / 6, 1e-2);
     // Caculate rotation matrix
-    get_rotation_matrix(yaw, armor_pose_in_cam);
-    armor_pose_in_cam = odom2cam_r_.toRotMat3x3() * armor_pose_in_cam;
+    get_rotation_matrix(yaw, r_mat);
+    r_mat = odom2cam_r_ * r_mat;
 }
 
 } // namespace helios_cv
