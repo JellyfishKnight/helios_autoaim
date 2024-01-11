@@ -2,6 +2,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/core/quaternion.hpp>
 #include <opencv2/core/types.hpp>
 #include <rclcpp/logger.hpp>
 #include <angles/angles.h>
@@ -28,13 +29,22 @@ public:
 
     void caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec);
 
-    cv::Mat get_transform_info(geometry_msgs::msg::TransformStamped ts);
+    void set_cam2odom(const geometry_msgs::msg::TransformStamped& quat);
+
+    void set_odom2cam(const geometry_msgs::msg::TransformStamped& quat);
 
     void draw_projection_points(cv::Mat& image);
 
-    cv::Mat odom2cam_r_;
-    cv::Mat cam2odom_r_;
 private:
+    struct CostFunctor {
+        template<typename T>
+        bool operator()(const T* yaw, const T* residual) const {
+            
+            return true;
+        }
+    };
+
+
     double diff_function(double yaw); 
 
     double phi_optimization(double left, double right, double eps);
@@ -54,6 +64,11 @@ private:
     // The pitch and roll of armor are fixed for target
     double roll_ = 0, pitch_ = angles::from_degrees(15);
     double armor_angle_;
+
+    cv::Quatd odom2cam_r_;
+    cv::Mat odom2cam_t_;
+    cv::Quatd cam2odom_r_;
+    cv::Mat cam2odom_t_;
 
     rclcpp::Logger logger_ = rclcpp::get_logger("ProjectYaw");
 };
