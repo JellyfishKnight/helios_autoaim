@@ -93,8 +93,7 @@ void AutoAimDebugger::image_callback(sensor_msgs::msg::Image::ConstSharedPtr msg
         return;
     }
     /// Check if armors or target is empty
-    if (!(armors_msg_ == nullptr || target_msg_ == nullptr || 
-        armors_msg_->armors.empty() || target_msg_->tracking == false)) {
+    if (!(armors_msg_ == nullptr || target_msg_ == nullptr || target_msg_->tracking == false)) {
         /// transform target from odom to camera
         try {
             transform_stamped_ = tf2_buffer_->lookupTransform("camera_optical_frame", "odom", msg->header.stamp, rclcpp::Duration::from_seconds(0.1));
