@@ -4,6 +4,7 @@
 #include <angles/angles.h>
 #include <ceres/cost_function.h>
 #include <ceres/problem.h>
+#include <ceres/types.h>
 #include <cmath>
 #include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <geometry_msgs/msg/detail/point_stamped__struct.hpp>
@@ -205,9 +206,9 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     ceres::CostFunction* costfunctor = new ceres::AutoDiffCostFunction<CostFunctor, 1, 1>(new CostFunctor);
     problem.AddResidualBlock(costfunctor, nullptr, &yaw);
     ceres::Solver::Options options;
-    options.linear_solver_type = ceres::DENSE_QR;
+    options.linear_solver_type = ceres::LinearSolverType::DENSE_QR;
     options.minimizer_progress_to_stdout = false;
-    options.max_num_iterations = 100;
+    options.max_num_iterations = 30;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     diff_function(yaw);
