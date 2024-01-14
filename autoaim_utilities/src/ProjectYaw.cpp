@@ -2,6 +2,8 @@
 #include "Armor.hpp"
 #include "PnPSolver.hpp"
 #include <angles/angles.h>
+#include <ceres/cost_function.h>
+#include <ceres/problem.h>
 #include <cmath>
 #include <geometry_msgs/msg/detail/point__struct.hpp>
 #include <geometry_msgs/msg/detail/point_stamped__struct.hpp>
@@ -17,6 +19,8 @@
 #include <vector>
 
 namespace helios_cv {
+
+ProjectYaw* ProjectYaw::pthis_;
 
 ProjectYaw::ProjectYaw(const std::array<double, 9> & camera_matrix, const std::vector<double> & dist_coeffs) :
     camera_matrix_(cv::Mat(3, 3, CV_64F, const_cast<double *>(camera_matrix.data())).clone()),
@@ -48,6 +52,8 @@ ProjectYaw::ProjectYaw(const std::array<double, 9> & camera_matrix, const std::v
     energy_armor_points_.emplace_back(cv::Point3f(0, half_y, half_z));
     energy_armor_points_.emplace_back(cv::Point3f(0, -half_y, half_z));
     energy_armor_points_.emplace_back(cv::Point3f(0, -half_y, -half_z));
+
+    pthis_ = this;
 }
 
 ProjectYaw::~ProjectYaw() {}
@@ -194,12 +200,18 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     } else {
         pitch_ = angles::from_degrees(15.0);
     }
-    // Take the yaw from pnp as a initial value
-    r_mat = cam2odom_r_ * r_mat;
-    /// THINKING: Can we consider the roll of armor ?
-    double armor_yaw_from_pnp = std::atan2(r_mat.at<double>(1, 0), r_mat.at<double>(0, 0));
-    // Get yaw in about 0 to 360 degree
-    yaw = phi_optimization(armor_yaw_from_pnp - M_PI / 6, armor_yaw_from_pnp + M_PI / 6, 1e-2);
+    // Get min diff yaw
+    ceres::Problem problem;
+    ceres::CostFunction* costfunctor = new ceres::AutoDiffCostFunction<CostFunctor, 1, 1>(new CostFunctor);
+    problem.AddResidualBlock(costfunctor, nullptr, &yaw);
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_QR;
+    options.minimizer_progress_to_stdout = false;
+    options.max_num_iterations = 100;
+    ceres::Solver::Summary summary;
+    ceres::Solve(options, &problem, &summary);
+    diff_function(yaw);
+    // RCLCPP_INFO(logger_, "yaw: %f", yaw);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;
