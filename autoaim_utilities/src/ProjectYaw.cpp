@@ -1,6 +1,7 @@
 #include "ProjectYaw.hpp"
 #include "Armor.hpp"
 #include "PnPSolver.hpp"
+#include <Eigen/src/Core/Matrix.h>
 #include <angles/angles.h>
 #include <ceres/cost_function.h>
 #include <ceres/problem.h>
@@ -75,17 +76,25 @@ double ProjectYaw::diff_function(double yaw) {
     get_rotation_matrix(yaw, rotation_matrix);
     rotation_matrix = odom2cam_r_ * rotation_matrix;
     // Turn rotation matrix into rotation vector
-    cv::Mat rvec;
-    cv::Rodrigues(rotation_matrix, rvec);
     // caculate projection points
-    cv::projectPoints(object_points_, rvec, tvec_, camera_matrix_, dist_coeffs_, projected_points_);
-    // Caculate the difference between projected points and image points
+    cv::projectPoints(object_points_, rotation_matrix, tvec_, camera_matrix_, dist_coeffs_, projected_points_);
+    // Caculate the difference between projected points and image points by angle between vectors
     double diff = 0;
-    for (int i = 0; i < 4; i++) {
-        diff += sqrt(pow(projected_points_[i].x - image_points_[i].x, 2) + pow(projected_points_[i].y - image_points_[i].y, 2));
+    Eigen::Vector3d image_vector[2], projected_vector[2];
+    image_vector[0] << image_points_[3].x - image_points_[0].x, image_points_[3].y - image_points_[0].y, 1;
+    image_vector[1] << image_points_[1].x - image_points_[2].x, image_points_[1].y - image_points_[2].y, 1;
+    projected_vector[0] << projected_points_[3].x - projected_points_[0].x, projected_points_[3].y - projected_points_[0].y, 1;
+    projected_vector[1] << projected_points_[1].x - projected_points_[0].x, projected_points_[1].y - projected_points_[0].y, 1;
+    Eigen::Vector3d image_cross = image_vector[0].cross(image_vector[1]);
+    Eigen::Vector3d projected_cross = projected_vector[0].cross(projected_vector[1]);
+    double raw_angle = image_vector[0].dot(image_vector[1]) / (image_vector[0].norm() * image_vector[1].norm());
+    double project_angle;
+    if (image_cross.dot(projected_cross) >= 0) {
+        project_angle = projected_vector[0].dot(projected_vector[1]) / (projected_vector[0].norm() * projected_vector[1].norm());
+    } else {
+        project_angle = -projected_vector[0].dot(projected_vector[1]) / (projected_vector[0].norm() * projected_vector[1].norm());
     }
-    diff /= 4;
-    return diff;
+    return raw_angle - project_angle;
 }
 
 void ProjectYaw::draw_projection_points(cv::Mat& image) {
@@ -169,7 +178,7 @@ void ProjectYaw::get_rotation_matrix(double yaw, cv::Mat& rotation_mat) const {
 }
 
 void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat tvec) {
-    double yaw = -M_PI;
+    double yaw = 0;
     tvec_ = tvec;
     // Fill in image points
     cv::Point2f point;
@@ -208,11 +217,13 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::LinearSolverType::DENSE_QR;
     options.minimizer_progress_to_stdout = false;
-    options.max_num_iterations = 30;
+    options.max_num_iterations = 100;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
+    // yaw = fmod(yaw, M_PI);
+    // Get draw points
     diff_function(yaw);
-    // RCLCPP_INFO(logger_, "yaw: %f", yaw);
+    RCLCPP_WARN(logger_, "yaw %f", yaw);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;

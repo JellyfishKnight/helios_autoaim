@@ -95,21 +95,13 @@ private:
             auto get_angle = [](const Eigen::Vector<T, 3> &v1, const Eigen::Vector<T, 3> &v2) {
                 return ceres::acos(v1.dot(v2) / (v1.norm() * v2.norm()));
             };
-            Eigen::Vector<T, 3> image_vector[2], projected_vector[2];
-            image_vector[0] << T(pthis_->image_points_[3].x - pthis_->image_points_[0].x), T(pthis_->image_points_[3].y - pthis_->image_points_[0].y), T(1);
-            image_vector[1] << T(pthis_->image_points_[1].x - pthis_->image_points_[0].x), T(pthis_->image_points_[1].y - pthis_->image_points_[0].y), T(1);
-            projected_vector[0] << T(projected_points[3][0] - projected_points[0][0]), T(projected_points[3][1] - projected_points[0][1]), T(1);
-            projected_vector[1] << T(projected_points[1][0] - projected_points[0][0]), T(projected_points[1][1] - projected_points[0][1]), T(1);
-            Eigen::Vector<T, 3> image_cross = image_vector[0].cross(image_vector[1]);
-            Eigen::Vector<T, 3> projected_cross = projected_vector[0].cross(projected_vector[1]);
-            auto raw_angle = get_angle(image_vector[0], image_vector[1]);
-            T projected_angle;
-            if (image_cross.dot(projected_cross) >= T(0)) {
-                projected_angle = get_angle(projected_vector[0], projected_vector[1]);
-            } else {
-                projected_angle = get_angle(projected_vector[0], projected_vector[1]) * T(-1);
+            Eigen::Vector<T, 3> image_vector, projected_vector;
+            residual[0] = T(0);
+            for (int i = 0; i < 4; i++) {
+                image_vector << T(pthis_->image_points_[(i + 1) % 4].x - pthis_->image_points_[i].x), T(pthis_->image_points_[(i + 1) % 4].y - pthis_->image_points_[i].y), T(1);
+                projected_vector << projected_points[(i + 1) % 4][0] - projected_points[i][0], projected_points[(i + 1) % 4][1] - projected_points[i][1], T(1);
+                residual[0] += get_angle(image_vector, projected_vector);
             }
-            residual[0] = raw_angle - projected_angle;
             return true;
         }
     };
