@@ -10,7 +10,7 @@
  */
 #pragma once
 
-#include <geometry_msgs/msg/detail/transform_stamped__struct.hpp>
+#include <autoaim_interfaces/msg/detail/receive_data__struct.hpp>
 #include <opencv2/core/types.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -30,13 +30,14 @@
 #include <message_filters/subscriber.h>
 
 #include <vector>
-#include <visualization_msgs/msg/detail/marker__struct.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <autoaim_interfaces/msg/armors.hpp>
 #include <autoaim_interfaces/msg/target.hpp>
+#include <autoaim_interfaces/msg/receive_data.hpp>
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
@@ -78,6 +79,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
     rclcpp::Subscription<autoaim_interfaces::msg::Armors>::SharedPtr armors_sub_;
     rclcpp::Subscription<autoaim_interfaces::msg::Target>::SharedPtr target_sub_;
+    rclcpp::Subscription<autoaim_interfaces::msg::ReceiveData>::SharedPtr receive_data_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr detect_marker_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr target_marker_pub_;
@@ -105,6 +107,7 @@ private:
     // armors and targets
     autoaim_interfaces::msg::Armors::SharedPtr armors_msg_;
     autoaim_interfaces::msg::Target::SharedPtr target_msg_;
+    autoaim_interfaces::msg::ReceiveData::SharedPtr receive_data_msg_;
 
     // camera info
     cv::Point image_center_;

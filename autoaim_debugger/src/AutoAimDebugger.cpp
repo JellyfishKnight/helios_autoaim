@@ -73,6 +73,11 @@ AutoAimDebugger::AutoAimDebugger(const rclcpp::NodeOptions& options) : rclcpp::N
             target_msg_ = std::move(msg);
         }
     );
+    receive_data_sub_ = this->create_subscription<autoaim_interfaces::msg::ReceiveData>("/predictor/receive_data", 10,
+        [this](autoaim_interfaces::msg::ReceiveData::SharedPtr msg) {
+            receive_data_msg_ = std::move(msg);
+        }
+    );
     image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/image_raw", rclcpp::SensorDataQoS(),
         std::bind(&AutoAimDebugger::image_callback, this, std::placeholders::_1)
     );
@@ -307,6 +312,22 @@ void AutoAimDebugger::draw_target() {
         } catch (cv::Exception& e) {
             RCLCPP_INFO(this->get_logger(), "center x %f y %f", bullet_center.x, bullet_center.y);
         }
+    }
+    /// Draw Prediction Point
+    if (receive_data_msg_ != nullptr) {
+        geometry_msgs::msg::Point point;
+        point.x = receive_data_msg_->x;
+        point.y = receive_data_msg_->y;
+        point.z = receive_data_msg_->z;
+        try {
+            tf2::doTransform(point, point, transform_stamped_);
+        } catch (tf2::TransformException& e) {
+            RCLCPP_ERROR(this->get_logger(), "tf2 exception: %s", e.what());
+            return;
+        }
+        cv::Mat_<double> predict_point = (cv::Mat_<double>(3, 1) << point.x, point.y, point.z);
+        predict_point = (camera_matrix_ / predict_point.at<double>(2)) * predict_point;
+        cv::circle(raw_image_, cv::Point2f(predict_point.at<double>(0), predict_point.at<double>(1)), 5, cv::Scalar(255, 0, 0), 2);
     }
     /// Draw image center
     cv::circle(raw_image_, image_center_, 5, cv::Scalar(0, 0, 255), 2);
