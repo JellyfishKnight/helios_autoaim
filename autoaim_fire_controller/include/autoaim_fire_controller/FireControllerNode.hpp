@@ -26,6 +26,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include <rclcpp/timer.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/create_timer_ros.h>
@@ -68,11 +69,14 @@ private:
     rclcpp::Publisher<helios_control_interfaces::msg::GimbalCmd>::SharedPtr gimbal_pub_;
     rclcpp::Publisher<helios_control_interfaces::msg::ShooterCmd>::SharedPtr shoot_pub_;
 
+    // Timer
+    rclcpp::TimerBase::SharedPtr timer_;
+
     void target_callback(autoaim_interfaces::msg::Target::SharedPtr target_msg);
 
     void imu_euler_callback(sensor_interfaces::msg::ImuEuler::SharedPtr imu_msg);
 
-    void serial_callback(autoaim_interfaces::msg::ReceiveData::SharedPtr serial_msg);
+    // void serial_callback(autoaim_interfaces::msg::ReceiveData::SharedPtr serial_msg);
 
     double latency_ = 0.15;
 

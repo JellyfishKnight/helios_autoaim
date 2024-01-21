@@ -223,7 +223,7 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
     // yaw = fmod(yaw, M_PI);
     // Get draw points
     diff_function(yaw);
-    RCLCPP_WARN(logger_, "yaw %f", yaw);
+    // RCLCPP_WARN(logger_, "yaw %f", yaw);
     // Caculate rotation matrix
     get_rotation_matrix(yaw, r_mat);
     r_mat = odom2cam_r_ * r_mat;

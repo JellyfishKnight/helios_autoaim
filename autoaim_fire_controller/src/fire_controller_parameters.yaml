@@ -6,7 +6,7 @@ fire_controller:
   }
   target_frame: {
     type: string,
-    default_value: "yaw",
+    default_value: "odom",
     description: "Target frame"
   }
   message_expire_time: {

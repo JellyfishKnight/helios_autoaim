@@ -15,6 +15,8 @@
 
 namespace helios_cv {
 
+using namespace std::chrono_literals;
+
 FireController::FireController(const rclcpp::NodeOptions& options) : 
     rclcpp::Node("fire_controller", options) {
     // create param
@@ -38,33 +40,15 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
         params_.bullet_solver.air_coeff
     });
     // create publisher and subscription
-    gimbal_pub_ = this->create_publisher<helios_control_interfaces::msg::GimbalCmd>("gimbal_cmd_", 10);
-    shoot_pub_ = this->create_publisher<helios_control_interfaces::msg::ShooterCmd>("shooter_cmd", 10);
+    gimbal_pub_ = this->create_publisher<helios_control_interfaces::msg::GimbalCmd>("/gimbal_cmd_angle", 10);
+    shoot_pub_ = this->create_publisher<helios_control_interfaces::msg::ShooterCmd>("/shooter_cmd", 10);
     imu_sub_ = this->create_subscription<sensor_interfaces::msg::ImuEuler>(
-            "imu_euler", 10, std::bind(&FireController::imu_euler_callback, this, std::placeholders::_1));
+            "/imu_euler_out", 10, std::bind(&FireController::imu_euler_callback, this, std::placeholders::_1));
     // bullet_sub_ = this->create_subscription<referee_interfaces::msg::>(, , )
-    // // 初始化tf2相关
-    tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
-    // // Create the timer interface before call to waitForTransform,
-    // // to avoid a tf2_ros::CreateTimerInterfaceException exception
-    auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(this->get_node_base_interface(), this->get_node_timers_interface());
-    tf2_buffer_->setCreateTimerInterface(timer_interface);
-    tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
-    // // subscriber and filter
-    armors_sub_.subscribe(this, "/predictor/target", rmw_qos_profile_sensor_data);
-    tf2_filter_ = std::make_shared<tf2_filter>(
-        armors_sub_, *tf2_buffer_, params_.target_frame, 10, this->get_node_logging_interface(),
-        this->get_node_clock_interface(), std::chrono::duration<int>(2));
-    // Register a callback with tf2_ros::MessageFilter to be called when transforms are available
-    tf2_filter_->registerCallback(&FireController::target_callback, this);        
+    target_sub_ = this->create_subscription<autoaim_interfaces::msg::Target>(
+            "/predictor/target", 10, std::bind(&FireController::target_callback, this, std::placeholders::_1));
     // create process thread
-    std::thread{
-        [this]() {
-            while (rclcpp::ok()) {
-                target_process();
-            }
-        }
-    }.detach();
+    timer_ = this->create_wall_timer(5ms, std::bind(&FireController::target_process, this));
 }
 
 FireController::~FireController() {
@@ -80,17 +64,21 @@ void FireController::target_callback(autoaim_interfaces::msg::Target::SharedPtr 
     target_msg_ = target_msg;
 }
 
-void FireController::serial_callback(autoaim_interfaces::msg::ReceiveData::SharedPtr serial_msg) {
-    imu_ypr_(0) = serial_msg->yaw;
-    imu_ypr_(1) = serial_msg->pitch;
-    imu_ypr_(2) = 0;
-    bullet_solver_->update_bullet_speed(serial_msg->bullet_speed);
-}
+// void FireController::serial_callback(autoaim_interfaces::msg::ReceiveData::SharedPtr serial_msg) {
+//     imu_ypr_(0) = serial_msg->yaw;
+//     imu_ypr_(1) = serial_msg->pitch;
+//     imu_ypr_(2) = 0;
+//     bullet_solver_->update_bullet_speed(serial_msg->bullet_speed);
+// }
 
 void FireController::target_process() {
-    if (!target_msg_->tracking || !target_msg_) {
+    if (!target_msg_) {
         // send data when under traditional mode
         return;
+    } else {
+        if (!target_msg_->tracking) {
+            return;
+        }
     }
     // check if msg has expired
     if ((this->now() - target_msg_->header.stamp).seconds() > params_.message_expire_time) {
@@ -107,9 +95,9 @@ void FireController::target_process() {
     }
     // update gimbal cmd
     gimbal_cmd_.header.stamp = this->now();
-    gimbal_cmd_.yaw_value = std::atan2(predicted_xyz(1), predicted_xyz(0));
+    gimbal_cmd_.yaw_value = -std::atan2(predicted_xyz(1), predicted_xyz(0)) * 180 / M_PI;
     gimbal_cmd_.pitch_value = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
-    gimbal_cmd_.gimbal_mode = 1;
+    gimbal_cmd_.gimbal_mode = 0;
     gimbal_pub_->publish(gimbal_cmd_);
     // update shoot cmd
     shooter_cmd_.header.stamp = this->now();
@@ -117,8 +105,9 @@ void FireController::target_process() {
     // judge shoot cmds
     bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), target_solver_->best_armor_yaw_); 
     shooter_cmd_.fire_flag = shoot_cmd ? 1 : 0;
-    shooter_cmd_.dial_vel = 10;
-    shoot_pub_->publish(shooter_cmd_);
+    shooter_cmd_.dial_vel = 2;
+    RCLCPP_WARN(logger_, "yaw %f, pitch %f", gimbal_cmd_.yaw_value, gimbal_cmd_.pitch_value);
+    // shoot_pub_->publish(shooter_cmd_);
     // update predict latency
     latency_ = params_.latency + fly_time + total_latency;
 }
@@ -139,3 +128,9 @@ bool FireController::judge_shoot_cmd(double distance, double armor_yaw) {
 }
 
 } // namespace helios_cv
+
+
+// register node to component
+#include "rclcpp_components/register_node_macro.hpp"
+
+RCLCPP_COMPONENTS_REGISTER_NODE(helios_cv::FireController);

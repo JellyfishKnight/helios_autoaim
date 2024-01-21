@@ -76,7 +76,7 @@ Eigen::Vector3d TargetSolver::get_best_armor(autoaim_interfaces::msg::Target::Sh
     return armors_position_[best_armor_idx_];
 }
 
-Eigen::Vector3d get_car_center_ypd(autoaim_interfaces::msg::Target::SharedPtr target_msg) {
+Eigen::Vector3d TargetSolver::get_car_center_ypd(autoaim_interfaces::msg::Target::SharedPtr target_msg) {
     float x = target_msg->position.x, y = target_msg->position.y, z = target_msg->position.z;
     double car_center_yaw = -std::atan2(-y, x);
     double car_center_pitch = std::atan2(z, std::sqrt(y * y + x * x)); 

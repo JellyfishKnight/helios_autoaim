@@ -310,7 +310,7 @@ void AutoAimDebugger::draw_target() {
             cv::circle(raw_image_, bullet_center, radius, cv::Scalar(255, 0, 0), 4);
             cv::putText(raw_image_, std::to_string(bullet_distance_[i]), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
         } catch (cv::Exception& e) {
-            RCLCPP_INFO(this->get_logger(), "center x %f y %f", bullet_center.x, bullet_center.y);
+            // RCLCPP_INFO(this->get_logger(), "center x %f y %f", bullet_center.x, bullet_center.y);
         }
     }
     /// Draw Prediction Point
