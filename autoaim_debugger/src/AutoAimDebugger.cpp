@@ -410,8 +410,8 @@ void AutoAimDebugger::bullistic_model() {
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
     // caculate bullet positions
-    double vel_x = BULLET_SPEED * std::cos(-pitch);
-    double vel_z = BULLET_SPEED * std::sin(-pitch);
+    double vel_x = BULLET_SPEED * std::cos(pitch);
+    double vel_z = BULLET_SPEED * std::sin(pitch);
     double distance_slice = target_distance_ / BULLET_INTERATE_NUM;
     // RCLCPP_WARN(this->get_logger(), "vx %f vz %f", vel_x, vel_z);
     for (double i = 0; i <= target_distance_; i += distance_slice) {
