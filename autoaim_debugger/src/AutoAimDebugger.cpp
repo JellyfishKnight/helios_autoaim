@@ -26,6 +26,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <rclcpp/duration.hpp>
+#include <rclcpp/logger.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/node.hpp>
 #include <rclcpp/qos.hpp>

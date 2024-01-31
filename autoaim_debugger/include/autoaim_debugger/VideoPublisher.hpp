@@ -15,7 +15,6 @@
 #include <image_transport/image_transport.hpp>
 #include <camera_info_manager/camera_info_manager.hpp>
 
-
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 
