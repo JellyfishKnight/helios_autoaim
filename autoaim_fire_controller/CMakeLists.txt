@@ -16,36 +16,37 @@ find_package(Eigen3 REQUIRED)
 
 ament_auto_find_build_dependencies()
 
-add_definitions(
-  -DUNDER_HELIOS_RS
-)
-
-generate_parameter_library(
-  fire_controller_parameters # cmake target name for the parameter library
-  src/fire_controller_parameters.yaml # path to input yaml file
-)
-
-ament_auto_add_library(${PROJECT_NAME} SHARED
-  DIRECTORY src
-)
-
-target_include_directories(
-  ${PROJECT_NAME} PUBLIC
-  include/${PROJECT_NAME}
-  ${OpenCV_INCLUDE_DIRS}
-)
-
-target_link_libraries(
-  ${PROJECT_NAME}
-  ${OpenCV_LIBS}
-  Eigen3::Eigen
-  fire_controller_parameters
-)
-
-rclcpp_components_register_node(${PROJECT_NAME}
-  PLUGIN helios_cv::FireController
-  EXECUTABLE ${PROJECT_NAME}_node
-)
+if(helios_control_interfaces_FOUND)
+  message("Found helios_control_interfaces")
+  generate_parameter_library(
+    fire_controller_parameters # cmake target name for the parameter library
+    src/fire_controller_parameters.yaml # path to input yaml file
+  )
+  
+  ament_auto_add_library(${PROJECT_NAME} SHARED
+    DIRECTORY src
+  )
+  
+  target_include_directories(
+    ${PROJECT_NAME} PUBLIC
+    include/${PROJECT_NAME}
+    ${OpenCV_INCLUDE_DIRS}
+  )
+  
+  target_link_libraries(
+    ${PROJECT_NAME}
+    ${OpenCV_LIBS}
+    Eigen3::Eigen
+    fire_controller_parameters
+  )
+  
+  rclcpp_components_register_node(${PROJECT_NAME}
+    PLUGIN helios_cv::FireController
+    EXECUTABLE ${PROJECT_NAME}_node
+  )  
+else()
+  message(WARNING "helios_control_interfaces not found")
+endif()
 
 if(BUILD_TESTING) 
   find_package(ament_lint_auto REQUIRED)
