@@ -4,6 +4,8 @@
 #include "KalmanFilter.hpp"
 #include <Eigen/src/Core/Matrix.h>
 #include <functional>
+#include <rclcpp/logger.hpp>
+#include <rclcpp/logging.hpp>
 
 namespace helios_cv {
 

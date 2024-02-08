@@ -2,4 +2,3 @@ string number
 int8 type
 float32 distance_to_image_center
 geometry_msgs/Pose pose
-geometry_msgs/Point[] points

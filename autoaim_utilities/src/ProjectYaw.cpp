@@ -201,7 +201,7 @@ void ProjectYaw::caculate_armor_yaw(const Armor &armor, cv::Mat &r_mat, cv::Mat 
         object_points_ = small_armor_points_;
     } else if (armor.type == ArmorType::LARGE) {
         object_points_ = large_armor_points_;
-    } else if (armor.type == ArmorType::ENERGY) {
+    } else if (armor.type == ArmorType::ENERGY_TARGET) {
         object_points_ = energy_armor_points_;
     }
     // Choose pitch value

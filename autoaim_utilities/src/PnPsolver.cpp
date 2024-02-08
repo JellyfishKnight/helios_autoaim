@@ -67,7 +67,7 @@ bool PnPSolver::solvePnP(const Armor & armor, cv::Mat & rvec, cv::Mat & tvec)
     object_points = small_armor_points_;
   } else if (armor.type == ArmorType::LARGE) {
     object_points = large_armor_points_;
-  } else if (armor.type == ArmorType::ENERGY) {
+  } else if (armor.type == ArmorType::ENERGY_TARGET) {
     object_points = energy_armor_points_;
   } else {
     return false;

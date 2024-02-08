@@ -16,7 +16,7 @@ namespace helios_cv {
 const int RED = 0;
 const int BLUE = 1;
 
-enum class ArmorType { SMALL, LARGE, ENERGY, INVALID };
+enum class ArmorType { SMALL, LARGE, ENERGY_FAN, ENERGY_TARGET, INVALID };
 
 typedef enum {LOST, TEMP_LOST, TRACKING, DETECTING} TrakerState;
 typedef enum {BALANCE, OUTPOST, NORMAL} TargetType;

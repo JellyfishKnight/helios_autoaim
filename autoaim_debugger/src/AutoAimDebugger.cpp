@@ -169,6 +169,12 @@ void AutoAimDebugger::publish_target_markers() {
     linear_v_marker_.header = target_msg_->header;
     angular_v_marker_.header = target_msg_->header;
     if (target_msg_->tracking) {
+        if (target_msg_->armors_num == 1) {
+            target_msg_->yaw = 0;
+            target_msg_->v_yaw = 0;
+            target_msg_->radius_1 = target_msg_->radius_2 = 0;
+            target_msg_->dz = 0;
+        }
         double yaw = target_msg_->yaw, r1 = target_msg_->radius_1, r2 = target_msg_->radius_2;
         double xc = target_msg_->position.x, yc = target_msg_->position.y, zc = target_msg_->position.z;
         double vxc = target_msg_->velocity.x, vyc = target_msg_->velocity.y, vzc = target_msg_->velocity.z, vyaw = target_msg_->v_yaw;
