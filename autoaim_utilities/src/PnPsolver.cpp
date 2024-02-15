@@ -53,11 +53,16 @@ PnPSolver::PnPSolver(
 
 bool PnPSolver::solve_pnp(const Armor & armor, cv::Mat & rvec, cv::Mat & tvec)
 {
+  image_armor_points_.clear();
   // Fill in image points
   image_armor_points_.emplace_back(armor.left_light.bottom);
   image_armor_points_.emplace_back(armor.left_light.top);
   image_armor_points_.emplace_back(armor.right_light.top);
   image_armor_points_.emplace_back(armor.right_light.bottom);
+
+  if (armor.type == ArmorType::ENERGY_TARGET || armor.type == ArmorType::ENERGY_FAN) {
+    image_armor_points_.emplace_back(armor.center);
+  }
 
   // Solve pnp
   if (armor.type == ArmorType::SMALL) {
@@ -93,11 +98,16 @@ float PnPSolver::calculateDistanceToCenter(const cv::Point2f & image_point)
 
 ArmorProjectYaw::ArmorProjectYaw(
   const std::array<double, 9> & camera_matrix, const std::vector<double> & dist_coeffs) :
-  PnPSolver(camera_matrix, dist_coeffs) {}
+  PnPSolver(camera_matrix, dist_coeffs) {
+  pthis_ = this;
+}
+
+ArmorProjectYaw* ArmorProjectYaw::pthis_;
 
 void ArmorProjectYaw::update_transform_info(const cv::Quatd& odom2cam_r, const cv::Quatd& cam2odom_r) {
   odom2cam_r_ = odom2cam_r.toRotMat3x3();
   cam2odom_r_ = cam2odom_r.toRotMat3x3();
+  is_transform_info_updated_ = true;
 }
 
 
@@ -253,8 +263,11 @@ bool ArmorProjectYaw::solve_pose(const Armor &armor, cv::Mat &rvec, cv::Mat &tve
 
 EnergyProjectRoll::EnergyProjectRoll(
   const std::array<double, 9> & camera_matrix, 
-  const std::vector<double> & dist_coeffs) : PnPSolver(camera_matrix, dist_coeffs) {}
+  const std::vector<double> & dist_coeffs) : PnPSolver(camera_matrix, dist_coeffs) {
+  pthis_ = this;
+}
 
+EnergyProjectRoll* EnergyProjectRoll::pthis_;
 
 double EnergyProjectRoll::diff_function(double roll) {
   // Caculate rotation matrix
@@ -363,6 +376,7 @@ void EnergyProjectRoll::draw_projection_points(cv::Mat& image) {
 void EnergyProjectRoll::update_transform_info(const cv::Quatd& odom2cam_r, const cv::Quatd& cam2odom_r) {
   cam2odom_r_ = cam2odom_r.toRotMat3x3();
   odom2cam_r_ = odom2cam_r.toRotMat3x3();
+  is_transform_info_updated_ = true;
 }
 
 
