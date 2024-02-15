@@ -12,6 +12,7 @@
 
 #include <autoaim_interfaces/msg/detail/receive_data__struct.hpp>
 #include <opencv2/core/types.hpp>
+#include <rclcpp/logger.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <angles/angles.h>
@@ -132,6 +133,10 @@ private:
 
     // raw image
     cv::Mat raw_image_;
+
+    bool is_armor_observer_;
+    // logger
+    rclcpp::Logger logger_ = rclcpp::get_logger("AutoAimDebugger");
 };
 
 

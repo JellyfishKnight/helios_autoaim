@@ -170,10 +170,12 @@ void AutoAimDebugger::publish_target_markers() {
     angular_v_marker_.header = target_msg_->header;
     if (target_msg_->tracking) {
         if (target_msg_->armors_num == 1) {
+            is_armor_observer_ = true;
             target_msg_->yaw = 0;
+            target_msg_->radius_1 = 0.0;
+            target_msg_->radius_2 = 0.0;
+            target_msg_->dz = 0.0;
             target_msg_->v_yaw = 0;
-            target_msg_->radius_1 = target_msg_->radius_2 = 0;
-            target_msg_->dz = 0;
         }
         double yaw = target_msg_->yaw, r1 = target_msg_->radius_1, r2 = target_msg_->radius_2;
         double xc = target_msg_->position.x, yc = target_msg_->position.y, zc = target_msg_->position.z;
@@ -269,22 +271,25 @@ void AutoAimDebugger::draw_target() {
         RCLCPP_ERROR(this->get_logger(), "tf2 exception: %s", e.what());
         return;
     }
-    /// Draw target armors
-    // convert ros pose to cv pose
-    for (auto& pose : target_pose_ros_) {
-        cv::Mat tvec = (cv::Mat_<double>(3, 1) << pose.position.x, pose.position.y, pose.position.z);
-        target_tvecs_.emplace_back(tvec);
-        cv::Quatd q(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
-        target_rvecs_.emplace_back(q);
-    }
-    for (std::size_t i = 0; i < target_tvecs_.size(); i++) {
-        std::vector<cv::Point2f> image_points;
-        cv::projectPoints(object_points_, target_rvecs_[i].toRotMat3x3(), target_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
-        cv::putText(raw_image_, std::to_string(i), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
-        for (size_t i = 0; i < image_points.size(); i++) {
-            cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), cv::LINE_4);
+    if (!is_armor_observer_) {
+        /// Draw target armors
+        // convert ros pose to cv pose
+        for (auto& pose : target_pose_ros_) {
+            cv::Mat tvec = (cv::Mat_<double>(3, 1) << pose.position.x, pose.position.y, pose.position.z);
+            target_tvecs_.emplace_back(tvec);
+            cv::Quatd q(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+            target_rvecs_.emplace_back(q);
+        }
+        for (std::size_t i = 0; i < target_tvecs_.size(); i++) {
+            std::vector<cv::Point2f> image_points;
+            cv::projectPoints(object_points_, target_rvecs_[i].toRotMat3x3(), target_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+            cv::putText(raw_image_, std::to_string(i), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+            for (size_t i = 0; i < image_points.size(); i++) {
+                cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), cv::LINE_4);
+            }
         }
     }
+    is_armor_observer_ = false;
     /// Transform bullets from odom to camera
     std::vector<cv::Quatd> rvecs;
     try {
