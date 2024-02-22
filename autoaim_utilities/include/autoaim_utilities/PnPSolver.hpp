@@ -32,8 +32,8 @@ constexpr double small_armor_width = 135.0;
 constexpr double small_armor_height = 55.0;
 constexpr double large_armor_width = 225.0;
 constexpr double large_armor_height = 55.0;
-constexpr double energy_armor_width = 380.0;
-constexpr double energy_armor_height = 400.0;
+constexpr double energy_armor_width = 430.0;
+constexpr double energy_armor_height = 370.0;
 
 class PnPSolver
 {

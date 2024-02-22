@@ -1,5 +1,6 @@
 #include "PnPSolver.hpp"
 #include <Eigen/src/Core/Matrix.h>
+#include <cmath>
 #include <rclcpp/logging.hpp>
 
 namespace helios_cv {
@@ -38,7 +39,7 @@ PnPSolver::PnPSolver(
   half_y = energy_armor_width / 2.0 / 1000.0;
   half_z = energy_armor_height / 2.0 / 1000.0;
   ///TODO: Measure R center
-  double r_poition = 0.5;
+  double r_poition = 0.7;
 
   // Start from bottom left in clockwise order, R last
   // Model coordinate: x forward, y left, z up
@@ -246,7 +247,7 @@ bool ArmorProjectYaw::solve_pose(const Armor &armor, cv::Mat &rvec, cv::Mat &tve
   ceres::Solver::Options options;
   options.linear_solver_type = ceres::LinearSolverType::DENSE_QR;
   options.minimizer_progress_to_stdout = false;
-  options.max_num_iterations = 100;
+  options.max_num_iterations = 50;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
   // Get draw points
@@ -321,7 +322,6 @@ bool EnergyProjectRoll::solve_pose(const Armor & armor, cv::Mat & rvec, cv::Mat 
       return false;
     }
   }
-  tvec_ = tvec;
   if (!is_transform_info_updated_) {
     RCLCPP_WARN(logger_, "PnP Solve done, but transform info not updated, skipping");
     return true;
@@ -331,9 +331,12 @@ bool EnergyProjectRoll::solve_pose(const Armor & armor, cv::Mat & rvec, cv::Mat 
   cv::Mat rotation_matrix;
   cv::Rodrigues(rvec, rotation_matrix);
   cv::Mat armor_pose_in_imu = cam2odom_r_ * rotation_matrix;
-  // Get yaw 
+  // Get yaw
+  double distance = std::sqrt(tvec.at<double>(0, 0) * tvec.at<double>(0, 0) + tvec.at<double>(1, 0) * tvec.at<double>(1, 0) + tvec.at<double>(2, 0) * tvec.at<double>(2, 0));
   yaw_ = std::atan2(armor_pose_in_imu.at<double>(1, 0), armor_pose_in_imu.at<double>(0, 0));
-  double roll;
+  double roll = 0;
+  tvec_ = tvec;
+  RCLCPP_INFO(logger_, "yaw %f pitch %f roll %f", yaw_, pitch_, roll);
   // Get min diff roll
   ceres::Problem problem;
   ceres::CostFunction* costfunctor = new ceres::AutoDiffCostFunction<CostFunctor, 1, 1>(new CostFunctor);
@@ -341,7 +344,7 @@ bool EnergyProjectRoll::solve_pose(const Armor & armor, cv::Mat & rvec, cv::Mat 
   ceres::Solver::Options options;
   options.linear_solver_type = ceres::LinearSolverType::DENSE_QR;
   options.minimizer_progress_to_stdout = false;
-  options.max_num_iterations = 100;
+  options.max_num_iterations = 50;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
   // draw points
@@ -358,8 +361,8 @@ void EnergyProjectRoll::draw_projection_points(cv::Mat& image) {
       return;
   }
   // for (int i = 0; i < 5; i++) {
-      // cv::circle(image, projected_points_[i], i + 1, cv::Scalar(0, 0, 255), -1);
-      // cv::circle(image, image_points_[i], i + 1, cv::Scalar(255, 0, 0), 2);
+  //     cv::circle(image, projected_points_[i], (i + 1) * 10, cv::Scalar(0, 0, 255), -1);
+  //     cv::circle(image, image_armor_points_[i], (i + 1) * 10, cv::Scalar(255, 0, 0), 2);
   // }
   cv::line(image, projected_points_[0], projected_points_[2], cv::Scalar(255, 255, 0), 2);
   cv::line(image, projected_points_[1], projected_points_[3], cv::Scalar(255, 255, 0), 2);

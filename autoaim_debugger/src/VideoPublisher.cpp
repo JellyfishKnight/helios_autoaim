@@ -15,6 +15,7 @@
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/node.hpp>
+#include <rclcpp/rate.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <thread>
 
@@ -38,7 +39,8 @@ VideoPublisher::VideoPublisher(const rclcpp::NodeOptions& options) : rclcpp::Nod
     }
     // Loop
     std::thread([this]()->void {
-        RCLCPP_WARN(this->get_logger(), "start");
+        RCLCPP_WARN(this->get_logger(), "start");\
+        rclcpp::Rate rate(20);
         while (rclcpp::ok()) {
             video_capture_ >> frame_;
             if (frame_.empty()) {
@@ -53,6 +55,7 @@ VideoPublisher::VideoPublisher(const rclcpp::NodeOptions& options) : rclcpp::Nod
             msg->header.stamp = this->now();
             camera_info_msg_.header = msg->header;
             image_pub_.publish(*msg, camera_info_msg_);
+            rate.sleep();
         }
     }).detach();
 }
