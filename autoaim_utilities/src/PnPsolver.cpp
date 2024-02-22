@@ -1,5 +1,6 @@
 #include "PnPSolver.hpp"
 #include <Eigen/src/Core/Matrix.h>
+#include <rclcpp/logging.hpp>
 
 namespace helios_cv {
 
@@ -60,10 +61,6 @@ bool PnPSolver::solve_pnp(const Armor & armor, cv::Mat & rvec, cv::Mat & tvec)
   image_armor_points_.emplace_back(armor.right_light.top);
   image_armor_points_.emplace_back(armor.right_light.bottom);
 
-  if (armor.type == ArmorType::ENERGY_TARGET || armor.type == ArmorType::ENERGY_FAN) {
-    image_armor_points_.emplace_back(armor.center);
-  }
-
   // Solve pnp
   if (armor.type == ArmorType::SMALL) {
     object_points_ = small_armor_points_;
@@ -75,7 +72,7 @@ bool PnPSolver::solve_pnp(const Armor & armor, cv::Mat & rvec, cv::Mat & tvec)
   } else {
     return false;
   }
-  
+
   return cv::solvePnP(
     object_points_, image_armor_points_, camera_matrix_, dist_coeffs_, rvec, tvec, false,
     cv::SOLVEPNP_IPPE);
@@ -324,6 +321,7 @@ bool EnergyProjectRoll::solve_pose(const Armor & armor, cv::Mat & rvec, cv::Mat 
       return false;
     }
   }
+  tvec_ = tvec;
   if (!is_transform_info_updated_) {
     RCLCPP_WARN(logger_, "PnP Solve done, but transform info not updated, skipping");
     return true;

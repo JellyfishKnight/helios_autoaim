@@ -1,6 +1,8 @@
 
 #pragma once
 // ROS2
+#include <rclcpp/logger.hpp>
+#include <rclcpp/logging.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <angles/angles.h>
 #include <geometry_msgs/msg/point.hpp>

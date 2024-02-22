@@ -46,7 +46,7 @@ void Omega::refresh(){
  * @brief 设置角度， 满足条件的开始求解角速度
  * @param theta 两帧之间的角度
 */
-void Omega::set_theta(float theta){
+void Omega::set_theta(double theta){
     angle_.push_back(theta);
     if(angle_.size() > differ_step_){
         start_ = true;
@@ -63,16 +63,16 @@ void Omega::set_theta(float theta){
  * @param step 指定步长多少来平滑
  * @param total_theta 角度
 */
-float Omega::calOmegaNstep(int step, float &total_theta){
+double Omega::calOmegaNstep(int step, double &total_theta){
     long unsigned int step_ = step + 1;
     if(angle_.size() < step_){
         return 0;
     }
 
-    float d_theta;
-    float dt = t_list_.back() - t_list_[t_list_.size() - step_];
+    double d_theta;
+    double dt = t_list_.back() - t_list_[t_list_.size() - step_];
 
-    float last_d_theta = angle_[angle_.size() - 1] - angle_[angle_.size() - 2];
+    double last_d_theta = angle_[angle_.size() - 1] - angle_[angle_.size() - 2];
 
     if(last_d_theta > 6.1){
         last_d_theta -= CV_2PI;
@@ -99,7 +99,7 @@ float Omega::calOmegaNstep(int step, float &total_theta){
         d_theta += CV_2PI;
     }
 
-    float tmp_omega = d_theta / dt;
+    double tmp_omega = d_theta / dt;
 
     if(fabs(tmp_omega) > 2.1){
         tmp_omega = (tmp_omega > 0) ? 2.09 : -2.09;
@@ -114,9 +114,9 @@ float Omega::calOmegaNstep(int step, float &total_theta){
  * @param f 输入的值
  * @return 四舍五入后的值
 */
-int Omega::round2int(float f){
+int Omega::round2int(double f){
     int int_f = f;
-    float d = f - int_f;
+    double d = f - int_f;
     if(d >= 0.5) return int_f;
     else if(d < 0 && d >- 0.5) return int_f;
     else if(d > 0 && d < 0.5) return int_f;
@@ -127,7 +127,7 @@ int Omega::round2int(float f){
 /**
  * @brief 顺逆时针
 */
-void Omega::JudgeFanRotation(float omega){
+void Omega::JudgeFanRotation(double omega){
     clockwise_cnt_ = (omega > 0)? clockwise_cnt_ + 1 : clockwise_cnt_ - 1;
     energy_rotation_direction_ = (clockwise_cnt_ > 0)? 1 : -1;
 }
@@ -158,7 +158,7 @@ void Omega::change_time_series(){
 /**
  * @brief 根据官方的公式求角速度
 */
-float Omega::IdealOmega(float & t_){
+double Omega::IdealOmega(double & t_){
     return a_ * std::sin(w_ * t_ + phi_) + 2.09 + a_;
 }
 
@@ -166,16 +166,22 @@ float Omega::IdealOmega(float & t_){
 /**
  * @brief 根据公式积分求提前量
 */
-float Omega::IdealRad(float t1, float t2){
+double Omega::IdealRad(double t1, double t2){
     return (-a_ / w_ ) * (std::cos(w_ * t2 + phi_) - std::cos(w_ * t2 + phi_)) + (2.09 - a_) * (t2 - t1);
 }
 
 
+void Omega::set_a_w_phi(double a, double w, double phi) {
+    a_ = a;
+    w_ = w;
+    phi_ = phi;
+}
+
 /**
  * @brief 获取预测角速度
 */
-float Omega::get_omega(){
-    float wt_ = IdealOmega(time_series_.back());
+double Omega::get_omega(){
+    double wt_ = IdealOmega(time_series_.back());
     return wt_ * energy_rotation_direction_;
 }
 
@@ -184,8 +190,8 @@ float Omega::get_omega(){
  * @brief 获取预测角度
  * @param latency 根据姿态解算和弹道解算求出来的时间
 */
-float Omega::get_rad(float latency){
-    float predict_rad = IdealRad(t_list_.back(), t_list_.back() + latency);
+double Omega::get_rad(double latency){
+    double predict_rad = IdealRad(t_list_.back(), t_list_.back() + latency);
     return predict_rad * energy_rotation_direction_;
 }
 
@@ -195,8 +201,8 @@ float Omega::get_rad(float latency){
 */
 bool Omega::FindWavePeak(){
     if(filter_omega_.size() > 15){
-        std::vector<float>cut_filter_omega(filter_omega_.end()-8, filter_omega_.end());
-        std::vector<float>cut_time_series(time_series_.end() - 8, time_series_.end());
+        std::vector<double>cut_filter_omega(filter_omega_.end()-8, filter_omega_.end());
+        std::vector<double>cut_time_series(time_series_.end() - 8, time_series_.end());
         Eigen::MatrixXd rate = LeastSquare(cut_time_series, cut_filter_omega, 1);
         fit_cnt_ = (rate(0, 0) > 0) ? fit_cnt_ + 1 : fit_cnt_ -1;
         if(fit_cnt_ > 5){
@@ -246,7 +252,7 @@ bool Omega::FindWavePeak(){
  * @param N 数量
  * @return 拟合的权重
 */
-Eigen::MatrixXd Omega::LeastSquare(std::vector<float> x, std::vector<float> y, int N){
+Eigen::MatrixXd Omega::LeastSquare(std::vector<double> x, std::vector<double> y, int N){
     Eigen::MatrixXd A(x.size(), N+1);
     Eigen::MatrixXd B(y.size(), 1);
     Eigen::MatrixXd W;
@@ -265,14 +271,14 @@ Eigen::MatrixXd Omega::LeastSquare(std::vector<float> x, std::vector<float> y, i
 /**
  * @brief 获取时间间隔
 */
-float Omega::get_time_gap(){
+double Omega::get_time_gap(){
     return time_series_.back() - time_series_[st_];
 }
 
 /**
  * @brief 设置滤波后的值
 */
-void Omega::set_filter(float d){
+void Omega::set_filter(double d){
     filter_omega_.push_back(energy_rotation_direction_ * d);
 }
 
@@ -280,7 +286,7 @@ void Omega::set_filter(float d){
 /**
  * @brief 获取预测误差
 */
-float Omega::get_err(){
+double Omega::get_err(){
     return get_omega() - filter_omega_.back();
 }
 
