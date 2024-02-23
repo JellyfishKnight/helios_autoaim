@@ -238,10 +238,12 @@ bool Omega::FindWavePeak(){
                 std::cout<<"--- get valley omega :"<<min_omega_<<"   init phi :"<<phi_<<std::endl;
             }
             return true;
-        }else{
+        } else {
             return false;
         }
-    }else return false;
+    } else {
+        return false;
+    }
 }
 
 
