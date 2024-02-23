@@ -10,7 +10,6 @@
  */
 #pragma once
 
-#include <autoaim_interfaces/msg/detail/receive_data__struct.hpp>
 #include <opencv2/core/types.hpp>
 #include <rclcpp/logger.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -103,6 +102,7 @@ private:
     visualization_msgs::msg::Marker linear_v_marker_;
     visualization_msgs::msg::Marker angular_v_marker_;
     visualization_msgs::msg::Marker target_armor_marker_;
+    visualization_msgs::msg::Marker target_energy_marker_;
     visualization_msgs::msg::MarkerArray target_marker_array_;
 
     // armors and targets
@@ -116,7 +116,8 @@ private:
     cv::Mat distortion_coefficients_; 
 
     // project infos
-    std::vector<cv::Point3f> object_points_;
+    std::vector<cv::Point3f> armor_object_points_;
+    std::vector<cv::Point3f> energy_object_points_;
     std::vector<cv::Point3f> bullet_object_points_;
 
     std::vector<cv::Mat> detect_tvecs_;
@@ -133,8 +134,8 @@ private:
 
     // raw image
     cv::Mat raw_image_;
-
     bool is_armor_observer_;
+    bool is_energy_observer_;
     // logger
     rclcpp::Logger logger_ = rclcpp::get_logger("AutoAimDebugger");
 };

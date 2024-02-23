@@ -17,6 +17,7 @@
   <depend>image_transport</depend>
   <depend>angles</depend>
   <depend>autoaim_interfaces</depend>
+  <depend>autoaim_utilities</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>message_filter</depend>

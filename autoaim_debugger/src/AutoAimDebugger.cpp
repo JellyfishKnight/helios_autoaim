@@ -38,6 +38,7 @@
 #include <tf2/convert.h>
 #include <tf2/exceptions.h>
 #include <vector>
+#include <visualization_msgs/msg/detail/marker__struct.hpp>
 
 
 namespace helios_cv {
@@ -165,6 +166,7 @@ void AutoAimDebugger::publish_target_markers() {
     target_tvecs_.clear();
     /// Push target marker
     target_armor_marker_.header = target_msg_->header;
+    target_energy_marker_.header = target_msg_->header;
     position_marker_.header = target_msg_->header;
     linear_v_marker_.header = target_msg_->header;
     angular_v_marker_.header = target_msg_->header;
@@ -176,65 +178,98 @@ void AutoAimDebugger::publish_target_markers() {
             target_msg_->radius_2 = 0.0;
             target_msg_->dz = 0.0;
             target_msg_->v_yaw = 0;
-        }
-        double yaw = target_msg_->yaw, r1 = target_msg_->radius_1, r2 = target_msg_->radius_2;
-        double xc = target_msg_->position.x, yc = target_msg_->position.y, zc = target_msg_->position.z;
-        double vxc = target_msg_->velocity.x, vyc = target_msg_->velocity.y, vzc = target_msg_->velocity.z, vyaw = target_msg_->v_yaw;
-        double dz = target_msg_->dz;
-
-        target_distance_ = std::sqrt(xc * xc + yc * yc);
-        // RCLCPP_WARN(this->get_logger(), "xc %f yc %f zc %f", xc, yc, zc);
-
-        position_marker_.action = visualization_msgs::msg::Marker::ADD;
-        position_marker_.pose.position.x = xc;
-        position_marker_.pose.position.y = yc;
-        position_marker_.pose.position.z = zc + dz / 2;
-
-        linear_v_marker_.action = visualization_msgs::msg::Marker::ADD;
-        linear_v_marker_.points.clear();
-        linear_v_marker_.points.emplace_back(position_marker_.pose.position);
-        geometry_msgs::msg::Point arrow_end = position_marker_.pose.position;
-        arrow_end.x += vxc;
-        arrow_end.y += vyc;
-        arrow_end.z += vzc;
-        linear_v_marker_.points.emplace_back(arrow_end);
-
-        angular_v_marker_.action = visualization_msgs::msg::Marker::ADD;
-        angular_v_marker_.points.clear();
-        angular_v_marker_.points.emplace_back(position_marker_.pose.position);
-        arrow_end = position_marker_.pose.position;
-        arrow_end.z += vyaw / M_PI;
-        angular_v_marker_.points.emplace_back(arrow_end);
-
-        target_armor_marker_.action = visualization_msgs::msg::Marker::ADD;
-        target_armor_marker_.scale.y = target_msg_->armor_type == "SMALL" ? 0.135 : 0.23;
-        bool is_current_pair = true;
-        size_t a_n = target_msg_->armors_num;
-        geometry_msgs::msg::Point p_a;
-        double r = 0;
-        for (size_t i = 0; i < a_n; i++) {
-            double tmp_yaw = yaw + i * (2 * M_PI / a_n);
-            // Only 4 armors has 2 radius and height
-            if (a_n == 4) {
-                r = is_current_pair ? r1 : r2;
-                p_a.z = zc + (is_current_pair ? 0 : dz);
-                is_current_pair = !is_current_pair;
-            } else {
-                r = r1;
-                p_a.z = zc;
+            target_distance_ = std::sqrt(target_msg_->position.x * target_msg_->position.x + target_msg_->position.y * target_msg_->position.y);
+        } else if (target_msg_->armors_num == 5) {
+            is_energy_observer_ = true;
+            double yaw = target_msg_->yaw, roll = target_msg_->v_yaw;
+            double r = target_msg_->radius_1;
+            double a = target_msg_->velocity.x, w = target_msg_->velocity.y, phi = target_msg_->velocity.z;
+            double xc = target_msg_->position.x - r * std::sin(-roll) * std::sin(yaw), 
+                    yc = target_msg_->position.y - r * std::sin(-roll) * std::cos(yaw),
+                    zc = target_msg_->position.z - r * std::cos(-roll);
+            target_distance_ = std::sqrt(xc * xc + yc * yc);
+            // Energy Center
+            position_marker_.action = visualization_msgs::msg::Marker::ADD;
+            position_marker_.pose.position.x = xc;
+            position_marker_.pose.position.y = yc;
+            position_marker_.pose.position.z = zc;
+            // Energy Fan
+            target_energy_marker_.action = visualization_msgs::msg::Marker::ADD;
+            size_t a_n = target_msg_->armors_num;
+            geometry_msgs::msg::Point p_a;
+            for (size_t i = 0; i < a_n; i++) {
+                double tmp_roll = roll + i * (2 * M_PI / a_n);
+                p_a.x = xc + r * std::sin(-tmp_roll) * std::sin(yaw);         
+                p_a.y = yc + r * std::sin(-tmp_roll) * std::cos(yaw);
+                p_a.z = zc + r * std::cos(-tmp_roll);
+                target_energy_marker_.id = i;
+                target_energy_marker_.pose.position = p_a;
+                tf2::Quaternion q;
+                q.setRPY(tmp_roll, 0, yaw);
+                target_energy_marker_.pose.orientation = tf2::toMsg(q);
+                target_marker_array_.markers.emplace_back(target_energy_marker_);
+                target_pose_ros_.emplace_back(target_energy_marker_.pose);
             }
-            p_a.x = xc - r * cos(tmp_yaw);
-            p_a.y = yc - r * sin(tmp_yaw);
-            
-            target_armor_marker_.id = i;
-            target_armor_marker_.pose.position = p_a;
-            tf2::Quaternion q;
-            q.setRPY(0, target_msg_->id == "outpost" ? -0.26 : 0.26, tmp_yaw);
-            target_armor_marker_.pose.orientation = tf2::toMsg(q);
-            target_marker_array_.markers.emplace_back(target_armor_marker_);
+        } else if (target_msg_->armors_num <= 4 && target_msg_->armors_num >= 2) {
+            double yaw = target_msg_->yaw, r1 = target_msg_->radius_1, r2 = target_msg_->radius_2;
+            double xc = target_msg_->position.x, yc = target_msg_->position.y, zc = target_msg_->position.z;
+            double vxc = target_msg_->velocity.x, vyc = target_msg_->velocity.y, vzc = target_msg_->velocity.z, vyaw = target_msg_->v_yaw;
+            double dz = target_msg_->dz;
 
-            // Get target armor corners
-            target_pose_ros_.emplace_back(target_armor_marker_.pose);
+            target_distance_ = std::sqrt(xc * xc + yc * yc);
+            // RCLCPP_WARN(this->get_logger(), "xc %f yc %f zc %f", xc, yc, zc);
+
+            position_marker_.action = visualization_msgs::msg::Marker::ADD;
+            position_marker_.pose.position.x = xc;
+            position_marker_.pose.position.y = yc;
+            position_marker_.pose.position.z = zc + dz / 2;
+
+            linear_v_marker_.action = visualization_msgs::msg::Marker::ADD;
+            linear_v_marker_.points.clear();
+            linear_v_marker_.points.emplace_back(position_marker_.pose.position);
+            geometry_msgs::msg::Point arrow_end = position_marker_.pose.position;
+            arrow_end.x += vxc;
+            arrow_end.y += vyc;
+            arrow_end.z += vzc;
+            linear_v_marker_.points.emplace_back(arrow_end);
+
+            angular_v_marker_.action = visualization_msgs::msg::Marker::ADD;
+            angular_v_marker_.points.clear();
+            angular_v_marker_.points.emplace_back(position_marker_.pose.position);
+            arrow_end = position_marker_.pose.position;
+            arrow_end.z += vyaw / M_PI;
+            angular_v_marker_.points.emplace_back(arrow_end);
+
+            target_armor_marker_.action = visualization_msgs::msg::Marker::ADD;
+            target_armor_marker_.scale.y = target_msg_->armor_type == "SMALL" ? 0.135 : 0.23;
+            bool is_current_pair = true;
+            size_t a_n = target_msg_->armors_num;
+            geometry_msgs::msg::Point p_a;
+            double r = 0;
+            for (size_t i = 0; i < a_n; i++) {
+                double tmp_yaw = yaw + i * (2 * M_PI / a_n);
+                // Only 4 armors has 2 radius and height
+                if (a_n == 4) {
+                    r = is_current_pair ? r1 : r2;
+                    p_a.z = zc + (is_current_pair ? 0 : dz);
+                    is_current_pair = !is_current_pair;
+                } else {
+                    r = r1;
+                    p_a.z = zc;
+                }
+                p_a.x = xc - r * cos(tmp_yaw);
+                p_a.y = yc - r * sin(tmp_yaw);
+                
+                target_armor_marker_.id = i;
+                target_armor_marker_.pose.position = p_a;
+                tf2::Quaternion q;
+                q.setRPY(0, target_msg_->id == "outpost" ? -0.26 : 0.26, tmp_yaw);
+                target_armor_marker_.pose.orientation = tf2::toMsg(q);
+                target_marker_array_.markers.emplace_back(target_armor_marker_);
+
+                // Get target armor corners
+                target_pose_ros_.emplace_back(target_armor_marker_.pose);
+            }
         }
     } else {
         position_marker_.action = visualization_msgs::msg::Marker::DELETE;
@@ -251,17 +286,29 @@ void AutoAimDebugger::publish_target_markers() {
 
 void AutoAimDebugger::draw_target() {
     /// Draw detect armors
-    for (std::size_t i = 0; i < detect_tvecs_.size(); i++) {
-        std::vector<cv::Point2f> image_points;
-        cv::projectPoints(object_points_, detect_rvecs_[i].toRotVec(), detect_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
-        for (size_t i = 0; i < image_points.size(); i++) {
-            cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 255, 0), cv::LINE_4);
+    if (!is_energy_observer_) {
+        for (std::size_t i = 0; i < detect_tvecs_.size(); i++) {
+            std::vector<cv::Point2f> image_points;
+            cv::projectPoints(armor_object_points_, detect_rvecs_[i].toRotVec(), detect_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+            for (size_t i = 0; i < image_points.size(); i++) {
+                cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 255, 0), cv::LINE_4);
+            }
+            cv::line(raw_image_, image_points[0], image_points[2], cv::Scalar(0, 255, 0), cv::LINE_4);
+            cv::line(raw_image_, image_points[1], image_points[3], cv::Scalar(0, 255, 0), cv::LINE_4);
+            cv::putText(raw_image_, armor_text_[i], image_points[1], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
         }
-        cv::line(raw_image_, image_points[0], image_points[2], cv::Scalar(0, 255, 0), cv::LINE_4);
-        cv::line(raw_image_, image_points[1], image_points[3], cv::Scalar(0, 255, 0), cv::LINE_4);
-        cv::putText(raw_image_, armor_text_[i], image_points[1], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+    } else {
+        for (std::size_t i = 0; i < detect_tvecs_.size(); i++) {
+            std::vector<cv::Point2f> image_points;
+            cv::projectPoints(energy_object_points_, detect_rvecs_[i].toRotVec(), detect_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+            for (size_t i = 0; i < image_points.size(); i++) {
+                cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 255, 0), cv::LINE_4);
+            }
+            cv::line(raw_image_, image_points[0], image_points[2], cv::Scalar(0, 255, 0), cv::LINE_4);
+            cv::line(raw_image_, image_points[1], image_points[3], cv::Scalar(0, 255, 0), cv::LINE_4);
+            cv::putText(raw_image_, armor_text_[i], image_points[1], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+        }
     }
-
     /// Transform targets from odom to camera
     try {
         for (auto& pose : target_pose_ros_) {    
@@ -271,7 +318,7 @@ void AutoAimDebugger::draw_target() {
         RCLCPP_ERROR(this->get_logger(), "tf2 exception: %s", e.what());
         return;
     }
-    if (!is_armor_observer_) {
+    if (!is_armor_observer_ && !is_energy_observer_) {
         /// Draw target armors
         // convert ros pose to cv pose
         for (auto& pose : target_pose_ros_) {
@@ -282,7 +329,23 @@ void AutoAimDebugger::draw_target() {
         }
         for (std::size_t i = 0; i < target_tvecs_.size(); i++) {
             std::vector<cv::Point2f> image_points;
-            cv::projectPoints(object_points_, target_rvecs_[i].toRotMat3x3(), target_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+            cv::projectPoints(armor_object_points_, target_rvecs_[i].toRotMat3x3(), target_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
+            cv::putText(raw_image_, std::to_string(i), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+            for (size_t i = 0; i < image_points.size(); i++) {
+                cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), cv::LINE_4);
+            }
+        }
+    } else if (is_energy_observer_) {
+        // Draw Energy
+        for (auto& pose : target_pose_ros_) {
+            cv::Mat tvec = (cv::Mat_<double>(3, 1) << pose.position.x, pose.position.y, pose.position.z);
+            target_tvecs_.emplace_back(tvec);
+            cv::Quatd q(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+            target_rvecs_.emplace_back(q);
+        }
+        for (std::size_t i = 0; i < target_tvecs_.size(); i++) {
+            std::vector<cv::Point2f> image_points;
+            cv::projectPoints(energy_object_points_, target_rvecs_[i].toRotMat3x3(), target_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
             cv::putText(raw_image_, std::to_string(i), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
             for (size_t i = 0; i < image_points.size(); i++) {
                 cv::line(raw_image_, image_points[i], image_points[(i + 1) % image_points.size()], cv::Scalar(0, 0, 255), cv::LINE_4);
@@ -290,6 +353,7 @@ void AutoAimDebugger::draw_target() {
         }
     }
     is_armor_observer_ = false;
+    is_energy_observer_ = false;
     /// Transform bullets from odom to camera
     std::vector<cv::Quatd> rvecs;
     try {
@@ -318,12 +382,8 @@ void AutoAimDebugger::draw_target() {
         cv::projectPoints(bullet_object_points_, rvecs[i].toRotMat3x3(), bullet_tvecs_[i], camera_matrix_, distortion_coefficients_, image_points);
         double radius = cv::norm(image_points[0] - image_points[1]) / std::sqrt(2);
         cv::Point2f bullet_center = (image_points[0] + image_points[1] + image_points[2] + image_points[3]) / 4;
-        try {
-            cv::circle(raw_image_, bullet_center, radius, cv::Scalar(255, 0, 0), 4);
-            cv::putText(raw_image_, std::to_string(bullet_distance_[i]), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
-        } catch (cv::Exception& e) {
-            // RCLCPP_INFO(this->get_logger(), "center x %f y %f", bullet_center.x, bullet_center.y);
-        }
+        cv::circle(raw_image_, bullet_center, radius, cv::Scalar(255, 0, 0), 4);
+        cv::putText(raw_image_, std::to_string(bullet_distance_[i]), image_points[2], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
     }
     /// Draw Prediction Point
     if (receive_data_msg_ != nullptr) {
@@ -340,7 +400,7 @@ void AutoAimDebugger::draw_target() {
         cv::Mat_<double> predict_point = (cv::Mat_<double>(3, 1) << point.x, point.y, point.z);
         predict_point = (camera_matrix_ / predict_point.at<double>(2)) * predict_point;
         cv::circle(raw_image_, cv::Point2f(predict_point.at<double>(0), predict_point.at<double>(1)), 5, cv::Scalar(255, 0, 0), 2);
-    }
+    } 
     /// Draw image center
     cv::circle(raw_image_, image_center_, 5, cv::Scalar(0, 0, 255), 2);
 }
@@ -393,14 +453,29 @@ void AutoAimDebugger::init_markers() {
     target_armor_marker_.scale.z = 0.125;
     target_armor_marker_.color.a = 1.0;
     target_armor_marker_.color.r = 1.0;
+    target_energy_marker_.ns = "armors";
+    target_energy_marker_.type = visualization_msgs::msg::Marker::CUBE;
+    target_energy_marker_.scale.x = 0.03;
+    target_energy_marker_.scale.y = 0.370;
+    target_energy_marker_.scale.z = 0.430;
+    target_energy_marker_.color.a = 1.0;
+    target_energy_marker_.color.r = 1.0;
 
     double armor_half_y = 135 / 2.0 / 1000.0;
     double armor_half_z = 125 / 2.0 / 1000.0;
 
-    object_points_.emplace_back(cv::Point3f(0, armor_half_y, -armor_half_z));
-    object_points_.emplace_back(cv::Point3f(0, armor_half_y, armor_half_z));
-    object_points_.emplace_back(cv::Point3f(0, -armor_half_y, armor_half_z));
-    object_points_.emplace_back(cv::Point3f(0, -armor_half_y, -armor_half_z));
+    armor_object_points_.emplace_back(cv::Point3f(0, armor_half_y, -armor_half_z));
+    armor_object_points_.emplace_back(cv::Point3f(0, armor_half_y, armor_half_z));
+    armor_object_points_.emplace_back(cv::Point3f(0, -armor_half_y, armor_half_z));
+    armor_object_points_.emplace_back(cv::Point3f(0, -armor_half_y, -armor_half_z));
+
+    armor_half_y = 0.430 / 2.0;
+    armor_half_z = 0.370 / 2.0;
+    energy_object_points_.emplace_back(cv::Point3f(0, armor_half_y, -armor_half_z));
+    energy_object_points_.emplace_back(cv::Point3f(0, armor_half_y, armor_half_z));
+    energy_object_points_.emplace_back(cv::Point3f(0, -armor_half_y, armor_half_z));
+    energy_object_points_.emplace_back(cv::Point3f(0, -armor_half_y, -armor_half_z));
+    energy_object_points_.emplace_back(cv::Point3f(0, 0, -0.7));
 
     bullet_object_points_.emplace_back(cv::Point3f(0, BULLET_RADIUS, 0));
     bullet_object_points_.emplace_back(cv::Point3f(0, -BULLET_RADIUS, 0));
