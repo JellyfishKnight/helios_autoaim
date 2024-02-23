@@ -336,7 +336,6 @@ bool EnergyProjectRoll::solve_pose(const Armor & armor, cv::Mat & rvec, cv::Mat 
   yaw_ = std::atan2(armor_pose_in_imu.at<double>(1, 0), armor_pose_in_imu.at<double>(0, 0));
   double roll = 0;
   tvec_ = tvec;
-  RCLCPP_INFO(logger_, "yaw %f pitch %f roll %f", yaw_, pitch_, roll);
   // Get min diff roll
   ceres::Problem problem;
   ceres::CostFunction* costfunctor = new ceres::AutoDiffCostFunction<CostFunctor, 1, 1>(new CostFunctor);
