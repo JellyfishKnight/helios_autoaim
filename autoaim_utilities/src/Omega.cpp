@@ -139,7 +139,7 @@ void Omega::JudgeFanRotation(double omega){
  * @param time_t 外部输入当前时间
 */
 void Omega::set_time(double time_t){
-    time_gap_ += (time_start_==0) ? 0.0 : time_t - time_start_;
+    time_gap_ += (time_start_ == 0) ? 0.0 : time_t - time_start_;
     time_start_ = time_t;
     t_list_.push_back(time_gap_);
     dt_ = t_list_.back() - t_list_[t_list_.size() - 2];
