@@ -184,15 +184,16 @@ void AutoAimDebugger::publish_target_markers() {
             double yaw = target_msg_->yaw, roll = target_msg_->v_yaw;
             double r = target_msg_->radius_1;
             double a = target_msg_->velocity.x, w = target_msg_->velocity.y, phi = target_msg_->velocity.z;
-            double xc = target_msg_->position.x - r * std::sin(-roll) * std::sin(yaw), 
-                    yc = target_msg_->position.y - r * std::sin(-roll) * std::cos(yaw),
-                    zc = target_msg_->position.z - r * std::cos(-roll);
+            double xc = target_msg_->position.x, 
+                    yc = target_msg_->position.y,
+                    zc = target_msg_->position.z;
             target_distance_ = std::sqrt(xc * xc + yc * yc);
             // Energy Center
             position_marker_.action = visualization_msgs::msg::Marker::ADD;
             position_marker_.pose.position.x = xc;
             position_marker_.pose.position.y = yc;
             position_marker_.pose.position.z = zc;
+            target_marker_array_.markers.emplace_back(position_marker_);
             // Energy Fan
             target_energy_marker_.action = visualization_msgs::msg::Marker::ADD;
             size_t a_n = target_msg_->armors_num;
@@ -502,10 +503,10 @@ void AutoAimDebugger::bullistic_model() {
     double distance_slice = target_distance_ / BULLET_INTERATE_NUM;
     // RCLCPP_WARN(this->get_logger(), "vx %f vz %f", vel_x, vel_z);
     for (double i = 0; i <= target_distance_; i += distance_slice) {
-        double time = (exp(AIR_COEFF * i) - 1) / vel_x / AIR_COEFF;
+        fly_time_ = (exp(AIR_COEFF * i) - 1) / vel_x / AIR_COEFF;
         double temp_x = i * std::cos(-yaw);
         double temp_y = i * std::sin(-yaw);
-        double temp_z = vel_z * time - 0.5 * 9.8 * time * time;
+        double temp_z = vel_z * fly_time_ - 0.5 * 9.8 * fly_time_ * fly_time_;
         // if (i == target_distance_)
         //     RCLCPP_INFO(this->get_logger(), "bullet x %f y %f z %f", temp_x, temp_y, temp_z); // use the output only when you need to debug
         cv::Mat p(3, 1, CV_64FC1);

@@ -132,6 +132,9 @@ private:
     std::vector<cv::Mat> bullet_tvecs_;
     std::vector<double> bullet_distance_;
 
+    // bullet info
+    double fly_time_;
+
     // raw image
     cv::Mat raw_image_;
     bool is_armor_observer_;
