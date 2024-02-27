@@ -11,6 +11,7 @@
 #include "FireControllerNode.hpp"
 #include <angles/angles.h>
 #include <cmath>
+#include <rclcpp/logging.hpp>
 
 
 namespace helios_cv {
@@ -74,9 +75,20 @@ void FireController::target_callback(autoaim_interfaces::msg::Target::SharedPtr 
 void FireController::target_process() {
     if (!target_msg_) {
         // send data when under traditional mode
+        gimbal_cmd_.header.stamp = this->now();
+        gimbal_cmd_.yaw_value = 10;
+        gimbal_cmd_.pitch_value = 0;
+        gimbal_cmd_.gimbal_mode = 1;
+        gimbal_pub_->publish(gimbal_cmd_);
         return;
     } else {
         if (!target_msg_->tracking) {
+            // send data when under traditional mode
+            gimbal_cmd_.header.stamp = this->now();
+            gimbal_cmd_.yaw_value = 10;
+            gimbal_cmd_.pitch_value = 0;
+            gimbal_cmd_.gimbal_mode = 1;
+            gimbal_pub_->publish(gimbal_cmd_);
             return;
         }
     }
@@ -96,7 +108,7 @@ void FireController::target_process() {
     // update gimbal cmd
     gimbal_cmd_.header.stamp = this->now();
     gimbal_cmd_.yaw_value = -std::atan2(predicted_xyz(1), predicted_xyz(0)) * 180 / M_PI;
-    gimbal_cmd_.pitch_value = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
+    gimbal_cmd_.pitch_value = bullet_solver_->iterate_pitch(predicted_xyz, fly_time) - 5.9;
     gimbal_cmd_.gimbal_mode = 0;
     gimbal_pub_->publish(gimbal_cmd_);
     // update shoot cmd
@@ -105,9 +117,10 @@ void FireController::target_process() {
     // judge shoot cmds
     bool shoot_cmd = judge_shoot_cmd(predicted_xyz.norm(), target_solver_->best_armor_yaw_); 
     shooter_cmd_.fire_flag = shoot_cmd ? 1 : 0;
-    shooter_cmd_.dial_vel = 2;
-    RCLCPP_WARN(logger_, "yaw %f, pitch %f", gimbal_cmd_.yaw_value, gimbal_cmd_.pitch_value);
-    // shoot_pub_->publish(shooter_cmd_);
+    // shooter_cmd_.fire_flag = 0;
+    shooter_cmd_.dial_vel = 1;
+    // RCLCPP_WARN(logger_, "yaw %f, pitch %f", gimbal_cmd_.yaw_value, gimbal_cmd_.pitch_value);
+    shoot_pub_->publish(shooter_cmd_);
     // update predict latency
     latency_ = params_.latency + fly_time + total_latency;
 }
@@ -116,11 +129,16 @@ bool FireController::judge_shoot_cmd(double distance, double armor_yaw) {
     double armor_width = 0.135f;
     double armor_height = 0.125f;
     double yaw_error_threshold = std::fabs(std::atan2(armor_width / 2.0f, distance));
-    double pitch_error_threshold = std::fabs(std::atan2(armor_height / 2.0f, distance));
+    double pitch_error_threshold = std::fabs(std::atan2(armor_height / 2.0f, distance)) * 3;
+    RCLCPP_WARN(logger_, "distance %f", distance);
     Eigen::Vector3d car_center_ypd = target_solver_->get_car_center_ypd(target_msg_);
-    if (std::fabs(angles::shortest_angular_distance(gimbal_cmd_.yaw_value, angles::from_degrees(imu_ypr_[0])) < yaw_error_threshold &&
-        std::fabs(angles::shortest_angular_distance(gimbal_cmd_.pitch_value, angles::from_degrees(imu_ypr_[1]))) < pitch_error_threshold &&
-        std::fabs(angles::shortest_angular_distance(armor_yaw, car_center_ypd[0])) < M_PI / 5)) {
+    RCLCPP_WARN(logger_, "diff %f, thresh %f", std::fabs(angles::shortest_angular_distance(armor_yaw, car_center_ypd[0])), M_PI / 3);
+    RCLCPP_WARN(logger_, "yaw diff %f thresh %f",angles::shortest_angular_distance(angles::from_degrees(gimbal_cmd_.yaw_value), angles::from_degrees(imu_ypr_[0])), yaw_error_threshold);
+    RCLCPP_WARN(logger_, "pitch diff %f thresh %f",std::fabs(angles::shortest_angular_distance(angles::from_degrees(gimbal_cmd_.pitch_value), angles::from_degrees(imu_ypr_[1]))), pitch_error_threshold);
+
+    if (std::fabs(angles::shortest_angular_distance(angles::from_degrees(gimbal_cmd_.yaw_value), angles::from_degrees(imu_ypr_[0])) < yaw_error_threshold &&
+        std::fabs(angles::shortest_angular_distance(angles::from_degrees(gimbal_cmd_.pitch_value), angles::from_degrees(imu_ypr_[1]))) < pitch_error_threshold &&
+        std::fabs(angles::shortest_angular_distance(armor_yaw, car_center_ypd[0])) < M_PI / 4)) {
         return true;
     } else {
         return false;    

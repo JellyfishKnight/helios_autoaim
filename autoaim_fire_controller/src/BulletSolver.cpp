@@ -27,8 +27,8 @@ double BulletSolver::iterate_pitch(Eigen::Vector3d target_xyz, double& fly_time)
     while(abs(dh) > 1e-02){
         i++;
         pitch = atan2(h_,d_);
-        v_y0 = bullet_speed_ * cos(pitch);
-        v_z0 = bullet_speed_ * sin(pitch);
+        v_y0 = 30 * cos(pitch);
+        v_z0 = 30 * sin(pitch);
         fly_time = (exp(params_.air_coeff * d) - 1) / v_y0 / params_.air_coeff;
         float temp_h = v_z0 * fly_time - 0.5 * gravity_ * fly_time * fly_time;
         dh = h - temp_h;

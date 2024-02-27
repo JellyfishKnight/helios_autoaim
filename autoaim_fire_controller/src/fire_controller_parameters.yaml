@@ -32,11 +32,11 @@ fire_controller:
     }
     air_coeff: {
       type: double,
-      default_value: 0.005,
+      default_value: 0.032,
       description: "Coefficient for air resistance, can't be zero!"
     }
   latency: {
     type: double,
-    default_value: 0.05,
+    default_value: 0.15,
     description: "Latency of the fire controller"
   }
