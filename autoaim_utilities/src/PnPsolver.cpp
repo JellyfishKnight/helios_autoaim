@@ -333,7 +333,7 @@ bool EnergyProjectRoll::solve_pose(const Armor & armor, cv::Mat & rvec, cv::Mat 
   cv::Mat armor_pose_in_imu = cam2odom_r_ * rotation_matrix;
   // Get yaw
   double distance = std::sqrt(tvec.at<double>(0, 0) * tvec.at<double>(0, 0) + tvec.at<double>(1, 0) * tvec.at<double>(1, 0) + tvec.at<double>(2, 0) * tvec.at<double>(2, 0));
-  yaw_ = std::atan2(armor_pose_in_imu.at<double>(1, 0), armor_pose_in_imu.at<double>(0, 0));
+  // yaw_ = std::atan2(armor_pose_in_imu.at<double>(1, 0), armor_pose_in_imu.at<double>(0, 0));
   double roll = 0;
   tvec_ = tvec;
   // Get min diff roll
