@@ -200,16 +200,7 @@ void AutoAimDebugger::publish_target_markers() {
             geometry_msgs::msg::Point p_a;
             for (size_t i = 0; i < a_n; i++) {
                 double tmp_roll = roll + i * (2 * M_PI / a_n);
-                p_a.x = xc + r * std::sin(-tmp_roll) * std::sin(yaw);         
-                p_a.y = yc + r * std::sin(-tmp_roll) * std::cos(yaw);
-                p_a.z = zc + r * std::cos(-tmp_roll);
-                target_energy_marker_.id = i;
-                target_energy_marker_.pose.position = p_a;
-                tf2::Quaternion q;
-                q.setRPY(tmp_roll, 0, yaw);
-                target_energy_marker_.pose.orientation = tf2::toMsg(q);
-                target_marker_array_.markers.emplace_back(target_energy_marker_);
-                target_pose_ros_.emplace_back(target_energy_marker_.pose);
+
             }
         } else if (target_msg_->armors_num <= 4 && target_msg_->armors_num >= 2) {
             double yaw = target_msg_->yaw, r1 = target_msg_->radius_1, r2 = target_msg_->radius_2;

@@ -171,6 +171,7 @@ public:
   void update_transform_info(const cv::Quatd& odom2cam_r, const cv::Quatd& cam2odom_r);
 
   bool use_projection = true;
+  double yaw_;
 private:
   static EnergyProjectRoll* pthis_;
 
@@ -232,7 +233,7 @@ private:
   cv::Matx33d odom2cam_r_;
   cv::Matx33d cam2odom_r_;
 
-  double yaw_, pitch_ = 0;
+  double pitch_ = 0;
   std::vector<cv::Point2f> projected_points_;
   cv::Mat tvec_;
 
