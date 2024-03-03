@@ -12,6 +12,8 @@
 #include <angles/angles.h>
 #include <cmath>
 #include <rclcpp/logging.hpp>
+#include <rclcpp/qos.hpp>
+#include <sensor_interfaces/msg/detail/speed__struct.hpp>
 
 
 namespace helios_cv {
@@ -31,7 +33,7 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
     bullet_solver_ = std::make_shared<BulletSolver>();
     target_solver_ = std::make_shared<TargetSolver>();
     if (!bullet_solver_ || !target_solver_) {
-        RCLCPP_ERROR(logger_, "Failed to create utilities, try again");
+        RCLCPP_ERROR(logger_, "Failed to create bullet or target solver");
         bullet_solver_ = std::make_shared<BulletSolver>();
         target_solver_ = std::make_shared<TargetSolver>();
     }
@@ -48,6 +50,10 @@ FireController::FireController(const rclcpp::NodeOptions& options) :
     // bullet_sub_ = this->create_subscription<referee_interfaces::msg::>(, , )
     target_sub_ = this->create_subscription<autoaim_interfaces::msg::Target>(
             "/predictor/target", 10, std::bind(&FireController::target_callback, this, std::placeholders::_1));
+    bullet_speed_sub_ = this->create_subscription<sensor_interfaces::msg::Speed>("/shoot_speed", rclcpp::SensorDataQoS(), 
+        [this](sensor_interfaces::msg::Speed::SharedPtr msg) {
+            bullet_solver_->update_bullet_speed(msg->initial_speed);
+        });
     // create process thread
     timer_ = this->create_wall_timer(5ms, std::bind(&FireController::target_process, this));
 }
@@ -74,22 +80,14 @@ void FireController::target_callback(autoaim_interfaces::msg::Target::SharedPtr 
 
 void FireController::target_process() {
     if (!target_msg_) {
-        gimbal_cmd_.header.stamp = shooter_cmd_.header.stamp = this->now();
-        gimbal_cmd_.yaw_value = 10;
-        gimbal_cmd_.pitch_value = 10;
-        gimbal_cmd_.gimbal_mode = 1;
-        gimbal_pub_->publish(gimbal_cmd_);
+        shooter_cmd_.header.stamp = this->now();
         shooter_cmd_.fire_flag = 0;
         shooter_cmd_.shooter_speed = 2;
         shoot_pub_->publish(shooter_cmd_);
         return;
     } else {
         if (!target_msg_->tracking) {
-            gimbal_cmd_.header.stamp = shooter_cmd_.header.stamp = this->now();
-            gimbal_cmd_.yaw_value = 10;
-            gimbal_cmd_.pitch_value = 10;
-            gimbal_cmd_.gimbal_mode = 1;
-            gimbal_pub_->publish(gimbal_cmd_);
+            shooter_cmd_.header.stamp = this->now();
             shooter_cmd_.fire_flag = 0;
             shooter_cmd_.shooter_speed = 2;
             shoot_pub_->publish(shooter_cmd_);
@@ -112,7 +110,7 @@ void FireController::target_process() {
     // update gimbal cmd
     gimbal_cmd_.header.stamp = this->now();
     gimbal_cmd_.yaw_value = -std::atan2(predicted_xyz(1), predicted_xyz(0)) * 180 / M_PI;
-    gimbal_cmd_.pitch_value = bullet_solver_->iterate_pitch(predicted_xyz, fly_time) - 5.9;
+    gimbal_cmd_.pitch_value = bullet_solver_->iterate_pitch(predicted_xyz, fly_time);
     gimbal_cmd_.gimbal_mode = 0;
     gimbal_pub_->publish(gimbal_cmd_);
     // update shoot cmd

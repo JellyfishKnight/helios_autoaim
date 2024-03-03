@@ -19,6 +19,7 @@
 #include "helios_control_interfaces/msg/shooter_cmd.hpp"
 #include "helios_control_interfaces/msg/gimbal_cmd.hpp"
 #include "sensor_interfaces/msg/imu_euler.hpp"
+#include "sensor_interfaces/msg/speed.hpp"
 
 #include "TargetSolver.hpp"
 #include "BulletSolver.hpp"
@@ -27,6 +28,7 @@
 #include <Eigen/Dense>
 
 #include <rclcpp/timer.hpp>
+#include <sensor_interfaces/msg/detail/speed__struct.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/create_timer_ros.h>
@@ -65,7 +67,7 @@ private:
 
     rclcpp::Subscription<autoaim_interfaces::msg::Target>::SharedPtr target_sub_;
     rclcpp::Subscription<sensor_interfaces::msg::ImuEuler>::SharedPtr imu_sub_;
-    // rclcpp::Subscription<referee_interfaces::msg::BulletSpeed>::SharedPtr bullet_speed_sub_;
+    rclcpp::Subscription<sensor_interfaces::msg::Speed>::SharedPtr bullet_speed_sub_;
     rclcpp::Publisher<helios_control_interfaces::msg::GimbalCmd>::SharedPtr gimbal_pub_;
     rclcpp::Publisher<helios_control_interfaces::msg::ShooterCmd>::SharedPtr shoot_pub_;
 
